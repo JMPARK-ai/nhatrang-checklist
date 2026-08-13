@@ -195,19 +195,38 @@ li.item.on .txt{color:var(--done); text-decoration:line-through}
 }
 .day-head h2{font-size:16px; font-weight:800; flex:1}
 .day-head .tag{font-size:12px; font-weight:800; color:var(--dc)}
-ul.plan-items{list-style:none}
-li.pitem{
-  display:flex; align-items:flex-start; gap:10px; padding:10px 16px;
-  border-bottom:1px solid var(--line);
+.slots{display:block}
+.slot{display:flex; border-bottom:1px dashed var(--line); min-height:32px}
+.slot:last-child{border-bottom:none}
+.slot-time{
+  flex:none; width:56px; padding:7px 8px 0 0; font-size:11px; font-weight:800;
+  color:var(--sub); text-align:right; border-right:1px solid var(--line);
+  font-variant-numeric:tabular-nums;
 }
-li.pitem:last-child{border-bottom:none}
-.ptime{
-  flex:none; font-size:12px; font-weight:900; color:var(--dc);
-  font-variant-numeric:tabular-nums; background:var(--dcsoft);
-  border-radius:7px; padding:3px 7px; margin-top:1px; min-width:48px; text-align:center;
+.slot.filled .slot-time{color:var(--dc)}
+.slot-body{flex:1; min-width:0; padding:4px 8px; display:flex; flex-direction:column; gap:4px; cursor:pointer}
+.entry{
+  background:var(--dcsoft); border-radius:9px; padding:6px 10px; font-size:13px;
+  display:flex; gap:7px; align-items:center; cursor:pointer;
 }
-.ptime.none{visibility:hidden}
-.ptxt{font-size:14px; flex:1; word-break:break-word}
+.entry .et{font-weight:900; color:var(--dc); font-size:11px; font-variant-numeric:tabular-nums; flex:none}
+.entry .ex{flex:1; min-width:0; word-break:break-word}
+.entry .pencil{flex:none; font-size:11px; opacity:.55}
+.entry-edit{
+  background:var(--dcsoft); border-radius:9px; padding:8px;
+  display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+}
+.entry-edit input[type=time]{
+  border:1.5px solid var(--line); border-radius:8px; padding:5px 4px; font-size:12px;
+  font-family:inherit; background:var(--card); color:var(--ink); width:80px;
+}
+.entry-edit input[type=text]{
+  flex:1; min-width:120px; border:1.5px solid var(--line); border-radius:8px;
+  padding:5px 9px; font-size:13px; font-family:inherit; background:var(--card); color:var(--ink);
+}
+.entry-edit .btn.small{padding:6px 10px; font-size:12px; border-radius:8px}
+.entry-edit .btn.ghost{background:var(--card); color:var(--sub); border:1px solid var(--line)}
+.entry-edit .btn.danger{background:var(--coral)}
 .plan-add{display:flex; gap:6px; padding:10px 12px; background:var(--dcsoft)}
 .plan-add input[type=time]{
   border:1.5px solid var(--line); border-radius:10px; padding:7px 6px; font-size:13px;
@@ -517,9 +536,83 @@ function updateTotal(){
   document.getElementById("barFill").style.width = total?Math.round(done/total*100)+"%":"0%";
 }
 
-/* ---------- 일정 렌더링 ---------- */
+/* ---------- 일정 렌더링 (시간별 표) ---------- */
 const planEl = document.getElementById("planGrid");
 const DAYCOLOR = ["s0","s2","s3","s4","s1"];
+let editing = null; // {di, key, draftT, draftX, focusPending}
+
+function makeEntry(di, key, en){
+  if(editing && editing.di===di && editing.key===key){
+    // 수정 모드
+    const form = document.createElement("div");
+    form.className = "entry-edit";
+    const time = document.createElement("input");
+    time.type = "time"; time.value = editing.draftT;
+    time.addEventListener("input", ()=>{ editing.draftT = time.value; });
+    const txt = document.createElement("input");
+    txt.type = "text"; txt.value = editing.draftX;
+    txt.addEventListener("input", ()=>{ editing.draftX = txt.value; });
+    const save = document.createElement("button");
+    save.className = "btn small"; save.textContent = "저장";
+    save.style.background = "var(--dc)";
+    const doSave = ()=>{
+      if(!editing.draftX.trim()) return;
+      const v = {t:editing.draftT||"", x:editing.draftX.trim()};
+      editing = null;
+      localThenRemote("/plan/d"+di+"/"+key, v);
+    };
+    save.addEventListener("click", doSave);
+    txt.addEventListener("keydown", e=>{ if(e.key==="Enter") doSave(); });
+    const del = document.createElement("button");
+    del.className = "btn small danger"; del.textContent = "삭제";
+    del.addEventListener("click", ()=>{
+      editing = null;
+      localThenRemote("/plan/d"+di+"/"+key, null);
+    });
+    const cancel = document.createElement("button");
+    cancel.className = "btn small ghost"; cancel.textContent = "취소";
+    cancel.addEventListener("click", ()=>{ editing = null; renderPlan(); });
+    form.appendChild(time); form.appendChild(txt);
+    form.appendChild(save); form.appendChild(del); form.appendChild(cancel);
+    if(editing.focusPending){
+      editing.focusPending = false;
+      setTimeout(()=>txt.focus(), 0);
+    }
+    return form;
+  }
+  // 보기 모드 - 탭하면 수정
+  const chip = document.createElement("div");
+  chip.className = "entry";
+  chip.setAttribute("role","button");
+  chip.setAttribute("aria-label", en.x+" 수정");
+  chip.innerHTML = (en.t ? "<span class='et'>"+en.t+"</span>" : "")
+    + "<span class='ex'>"+esc(en.x)+"</span><span class='pencil'>✏️</span>";
+  chip.addEventListener("click", e=>{
+    e.stopPropagation();
+    editing = {di, key, draftT:en.t||"", draftX:en.x, focusPending:true};
+    renderPlan();
+  });
+  return chip;
+}
+
+function makeSlot(di, label, list, prefill, timeInp, txtInp){
+  const row = document.createElement("div");
+  row.className = "slot" + (list.length ? " filled" : "");
+  const tl = document.createElement("div");
+  tl.className = "slot-time"; tl.textContent = label;
+  const body = document.createElement("div");
+  body.className = "slot-body";
+  list.forEach(([key, en])=> body.appendChild(makeEntry(di, key, en)));
+  // 빈 칸을 탭하면 그 시간이 추가칸에 자동 입력
+  body.addEventListener("click", e=>{
+    if(e.target !== body) return;
+    if(prefill) timeInp.value = prefill;
+    txtInp.focus();
+  });
+  row.appendChild(tl); row.appendChild(body);
+  return row;
+}
+
 function renderPlan(){
   planEl.innerHTML = "";
   DAYS.forEach((day, di)=>{
@@ -540,7 +633,7 @@ function renderPlan(){
     const time = document.createElement("input");
     time.type = "time"; time.setAttribute("aria-label","시간(선택)");
     const inp = document.createElement("input");
-    inp.type = "text"; inp.placeholder = "+ 일정 추가 (예: 빈원더스)";
+    inp.type = "text"; inp.placeholder = "+ 일정 추가";
     const submit = ()=>{
       if(!inp.value.trim()) return;
       localThenRemote("/plan/d"+di+"/"+newKey(), {t:time.value||"", x:inp.value.trim()});
@@ -553,35 +646,26 @@ function renderPlan(){
     add.appendChild(time); add.appendChild(inp); add.appendChild(addBtn);
     card.appendChild(add);
 
-    const entries = Object.entries((state.plan||{})["d"+di]||{})
-      .filter(([k,v])=>v)
-      .sort((a,b)=>{
-        const ta=a[1].t||"", tb=b[1].t||"";
-        if(ta && tb) return ta.localeCompare(tb);
-        if(ta) return -1; if(tb) return 1;
-        return a[0].localeCompare(b[0]);
-      });
-    const ul = document.createElement("ul");
-    ul.className = "plan-items";
-    entries.forEach(([key, en])=>{
-      const li = document.createElement("li");
-      li.className = "pitem";
-      li.innerHTML = "<span class='ptime"+(en.t?"":" none")+"'>"+(en.t||"–")+"</span>"
-        + "<span class='ptxt'>"+esc(en.x)+"</span>";
-      const d = document.createElement("button");
-      d.className = "del"; d.textContent = "×"; d.setAttribute("aria-label","일정 삭제");
-      d.addEventListener("click", ()=> localThenRemote("/plan/d"+di+"/"+key, null));
-      li.appendChild(d);
-      ul.appendChild(li);
+    // 시간별 표: 06~23시 기본, 그 밖 시간은 자동 확장
+    const entries = Object.entries((state.plan||{})["d"+di]||{}).filter(([k,v])=>v);
+    const noTime = entries.filter(([k,en])=>!en.t).sort((a,b)=>a[0].localeCompare(b[0]));
+    const byHour = {};
+    entries.filter(([k,en])=>en.t).forEach(([k,en])=>{
+      const h = parseInt(en.t, 10);
+      (byHour[h] = byHour[h] || []).push([k,en]);
     });
-    if(entries.length===0){
-      const em = document.createElement("div");
-      em.className = "plan-empty";
-      em.textContent = "아직 일정이 없어요 — 위에서 추가해 보세요";
-      card.appendChild(em);
-    }else{
-      card.appendChild(ul);
+    Object.values(byHour).forEach(arr=>arr.sort((a,b)=>a[1].t.localeCompare(b[1].t)));
+    let start = 6, end = 23;
+    Object.keys(byHour).forEach(h=>{ h=+h; if(h<start) start=h; if(h>end) end=h; });
+
+    const table = document.createElement("div");
+    table.className = "slots";
+    if(noTime.length) table.appendChild(makeSlot(di, "미정", noTime, "", time, inp));
+    for(let h=start; h<=end; h++){
+      const label = String(h).padStart(2,"0")+":00";
+      table.appendChild(makeSlot(di, label, byHour[h]||[], label, time, inp));
     }
+    card.appendChild(table);
     planEl.appendChild(card);
   });
 }
