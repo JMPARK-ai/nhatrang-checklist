@@ -169,6 +169,14 @@ li.item.on .txt{color:var(--done); text-decoration:line-through}
 .empty-search{
   grid-column:1/-1; text-align:center; color:var(--sub); font-size:14px; padding:30px 0;
 }
+.new-section{
+  border:2px dashed var(--line); border-radius:16px; padding:14px;
+  display:flex; gap:8px; align-items:center; background:none;
+}
+.new-section input{
+  flex:1; min-width:0; border:1.5px solid var(--line); border-radius:10px;
+  padding:9px 12px; font-size:14px; font-family:inherit; background:var(--card); color:var(--ink);
+}
 
 /* ---------- 일정 ---------- */
 .plan-grid{display:grid; gap:14px; grid-template-columns:1fr; align-items:start}
@@ -299,11 +307,12 @@ const DAYS = [
   {label:"9/14 (월)", tag:"귀국 🛬"}
 ];
 const CACHE_KEY = "nhatrang-rt-cache-v2";
-let state = {chk:{}, custom:{}, plan:{}, removed:{}};
+let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}};
 let query = "";
 
 function normalize(s){
-  state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{}, removed:(s&&s.removed)||{}};
+  state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{},
+    removed:(s&&s.removed)||{}, sections:(s&&s.sections)||{}};
 }
 try{ normalize(JSON.parse(localStorage.getItem(CACHE_KEY))); }catch(e){}
 
@@ -357,19 +366,28 @@ function newKey(){ return "c" + Date.now().toString(36) + Math.random().toString
 /* ---------- 준비물 렌더링 ---------- */
 const secEl = document.getElementById("sections");
 function matches(t){ return !query || t.toLowerCase().includes(query); }
+// 기본 5개 + 직접 추가한 대분류를 합쳐 한 목록으로
+function sectionList(){
+  const base = DATA.map((sec,si)=>({id:si, name:sec.name, emoji:sec.emoji, color:si, items:sec.items, custom:false}));
+  const cust = Object.entries(state.sections).filter(([k,v])=>v)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([k,v],i)=>({id:k, name:v.n, emoji:v.e||"📦", color:(5+i)%5, items:[], custom:true}));
+  return base.concat(cust);
+}
 function renderCheck(){
   secEl.innerHTML = "";
   let anyVisible = false;
-  DATA.forEach((sec, si)=>{
-    const customs = Object.entries(state.custom).filter(([k,c])=>c && c.s===si);
-    const baseItems = sec.items.map((t,ii)=>[t,ii]).filter(([t,ii])=>!state.removed[si+"-"+ii]);
+  sectionList().forEach(sec=>{
+    const customs = Object.entries(state.custom).filter(([k,c])=>c && c.s===sec.id);
+    const baseItems = sec.custom ? [] :
+      sec.items.map((t,ii)=>[t,ii]).filter(([t,ii])=>!state.removed[sec.id+"-"+ii]);
     const total = baseItems.length + customs.length;
     let done = 0, visibleCount = 0;
 
     const box = document.createElement("section");
     box.className = "grp";
-    box.style.setProperty("--sc", "var(--s"+si+")");
-    box.style.setProperty("--scsoft", "var(--s"+si+"soft)");
+    box.style.setProperty("--sc", "var(--s"+sec.color+")");
+    box.style.setProperty("--scsoft", "var(--s"+sec.color+"soft)");
 
     const head = document.createElement("div");
     head.className = "grp-head";
@@ -377,7 +395,7 @@ function renderCheck(){
     ul.className = "items";
 
     baseItems.forEach(([t, ii])=>{
-      const id = si+"-"+ii, on = !!state.chk[id];
+      const id = sec.id+"-"+ii, on = !!state.chk[id];
       if(on) done++;
       const li = makeItem(t, on,
         ()=> localThenRemote("/chk/"+id, on?null:true),
@@ -396,6 +414,25 @@ function renderCheck(){
 
     head.innerHTML = "<span class='emoji'>"+sec.emoji+"</span><h2>"+esc(sec.name)+"</h2>"
       + "<span class='gc"+(done===total&&total>0?" full":"")+"'>"+done+" / "+total+"</span>";
+    if(sec.custom){
+      // 직접 만든 대분류는 삭제 가능 (항목이 있으면 두 번 눌러 확정)
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "×";
+      del.setAttribute("aria-label", sec.name+" 대분류 삭제");
+      let armed = false, timer;
+      del.addEventListener("click", ()=>{
+        if(customs.length > 0 && !armed){
+          armed = true; del.textContent = "확인";
+          toast("항목 "+customs.length+"개가 같이 지워져요 — [확인]을 한 번 더 누르면 삭제");
+          timer = setTimeout(()=>{ armed=false; del.textContent="×"; }, 4000);
+          return;
+        }
+        clearTimeout(timer);
+        customs.forEach(([key])=>{ applyPut("/custom/"+key, null); dbWrite("/custom/"+key, null); });
+        localThenRemote("/sections/"+sec.id, null);
+      });
+      head.appendChild(del);
+    }
     box.appendChild(head);
 
     // 항목 추가 - 섹션 상단 (버튼 + 엔터 둘 다)
@@ -408,7 +445,7 @@ function renderCheck(){
     addBtn.style.background = "var(--sc)";
     const submitSec = ()=>{
       if(!inp.value.trim()) return;
-      localThenRemote("/custom/"+newKey(), {s:si, t:inp.value.trim(), c:false});
+      localThenRemote("/custom/"+newKey(), {s:sec.id, t:inp.value.trim(), c:false});
     };
     inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submitSec(); });
     addBtn.addEventListener("click", submitSec);
@@ -420,12 +457,32 @@ function renderCheck(){
     else anyVisible = true;
     secEl.appendChild(box);
   });
+
+  // 새 대분류 추가 카드
+  const nsCard = document.createElement("div");
+  nsCard.className = "new-section";
+  const nsInp = document.createElement("input");
+  nsInp.placeholder = "+ 새 대분류 이름 (예: 엄마아빠 옷)";
+  const nsBtn = document.createElement("button");
+  nsBtn.className = "btn small"; nsBtn.textContent = "대분류 추가";
+  const nsSubmit = ()=>{
+    const n = nsInp.value.trim();
+    if(!n) return;
+    localThenRemote("/sections/"+newKey(), {n:n});
+    toast("\""+n+"\" 대분류를 만들었어요");
+  };
+  nsInp.addEventListener("keydown", e=>{ if(e.key==="Enter") nsSubmit(); });
+  nsBtn.addEventListener("click", nsSubmit);
+  nsCard.appendChild(nsInp); nsCard.appendChild(nsBtn);
+  if(!query) secEl.appendChild(nsCard);
+
   if(query && !anyVisible){
     const em = document.createElement("div");
     em.className = "empty-search";
     em.textContent = "\""+query+"\" 검색 결과가 없어요";
     secEl.appendChild(em);
   }
+  rebuildGaddOptions();
   updateTotal();
 }
 function makeItem(text, on, onToggle, onDel){
@@ -546,15 +603,22 @@ searchClear.addEventListener("click", ()=>{
 
 /* ---------- 전체 추가 (섹션 선택 + 입력) ---------- */
 const gaddSection = document.getElementById("gaddSection");
-DATA.forEach((sec, si)=>{
-  const o = document.createElement("option");
-  o.value = si; o.textContent = sec.emoji+" "+sec.name;
-  gaddSection.appendChild(o);
-});
+function rebuildGaddOptions(){
+  const prev = gaddSection.value;
+  gaddSection.innerHTML = "";
+  sectionList().forEach(sec=>{
+    const o = document.createElement("option");
+    o.value = String(sec.id); o.textContent = sec.emoji+" "+sec.name;
+    gaddSection.appendChild(o);
+  });
+  if([...gaddSection.options].some(o=>o.value===prev)) gaddSection.value = prev;
+}
 const gaddInput = document.getElementById("gaddInput");
 function gadd(){
   if(!gaddInput.value.trim()) return;
-  localThenRemote("/custom/"+newKey(), {s:+gaddSection.value, t:gaddInput.value.trim(), c:false});
+  const v = gaddSection.value;
+  const s = /^\d+$/.test(v) ? +v : v; // 기본 대분류는 번호, 직접 만든 대분류는 키
+  localThenRemote("/custom/"+newKey(), {s:s, t:gaddInput.value.trim(), c:false});
   gaddInput.value = "";
   toast("추가했어요");
 }
@@ -593,9 +657,9 @@ document.getElementById("resetAll").addEventListener("click", function(){
     resetTimer = setTimeout(()=>{ resetArmed=false; this.textContent="준비물 전체 초기화"; }, 4000);
   }else{
     clearTimeout(resetTimer); resetArmed = false;
-    state.chk = {}; state.custom = {}; state.removed = {}; saveCache(); renderAll();
-    dbWrite("/chk", null); dbWrite("/custom", null); dbWrite("/removed", null);
-    this.textContent = "준비물 전체 초기화"; toast("초기화했어요 (지운 기본 항목도 복구)");
+    state.chk = {}; state.custom = {}; state.removed = {}; state.sections = {}; saveCache(); renderAll();
+    dbWrite("/chk", null); dbWrite("/custom", null); dbWrite("/removed", null); dbWrite("/sections", null);
+    this.textContent = "준비물 전체 초기화"; toast("초기화했어요 (기본 목록으로 복구)");
   }
 });
 
