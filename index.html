@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>나트랑 여행 준비물</title>
+<style>
+:root{
+  --bg:#FBF8F2; --card:#FFFFFF; --ink:#1E2B29; --sub:#6B7C78;
+  --line:#E6E0D2; --accent:#0E7B72; --accent-soft:#E3F0EE;
+  --coral:#E8654F; --done:#9AA8A4; --ok:#2E9E6B; --warn:#D98A00;
+  --shadow:0 1px 3px rgba(30,43,41,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101A18; --card:#182422; --ink:#E8EEEC; --sub:#8FA39E;
+    --line:#26332F; --accent:#4DC2B5; --accent-soft:#1C332F;
+    --coral:#F08A77; --done:#5C6E69; --ok:#4FBF8A; --warn:#E8A83E;
+    --shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101A18; --card:#182422; --ink:#E8EEEC; --sub:#8FA39E;
+  --line:#26332F; --accent:#4DC2B5; --accent-soft:#1C332F;
+  --coral:#F08A77; --done:#5C6E69; --ok:#4FBF8A; --warn:#E8A83E;
+  --shadow:0 1px 3px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",-apple-system,sans-serif;
+  line-height:1.5; -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:560px; margin:0 auto; padding:0 16px 80px}
+
+header.top{
+  position:sticky; top:0; z-index:10; background:var(--bg);
+  padding:14px 0 10px; border-bottom:1px solid var(--line);
+  margin-bottom:16px;
+}
+.head-row{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.eyebrow{font-size:12px; letter-spacing:.14em; color:var(--accent); font-weight:700}
+.live{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub)}
+.live .dot{width:8px; height:8px; border-radius:50%; background:var(--warn)}
+.live.on .dot{background:var(--ok)}
+.live.on{color:var(--ok)}
+h1{font-size:24px; font-weight:800; letter-spacing:-.02em; margin:2px 0 10px}
+.progress-row{display:flex; align-items:center; gap:10px}
+.bar{flex:1; height:8px; border-radius:99px; background:var(--line); overflow:hidden}
+.bar>i{display:block; height:100%; width:0%; border-radius:99px;
+  background:linear-gradient(90deg,var(--accent),var(--coral)); transition:width .3s}
+.count{font-size:13px; font-weight:700; color:var(--sub);
+  font-variant-numeric:tabular-nums; white-space:nowrap}
+
+section.grp{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden;
+}
+.grp-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 16px; border-bottom:1px solid var(--line);
+}
+.grp-head h2{font-size:15px; font-weight:800; letter-spacing:-.01em}
+.grp-head .gc{font-size:12px; font-weight:700; color:var(--sub);
+  font-variant-numeric:tabular-nums}
+.grp-head .gc.full{color:var(--accent)}
+ul.items{list-style:none}
+li.item{
+  display:flex; align-items:center; gap:12px; padding:11px 16px;
+  border-bottom:1px solid var(--line); cursor:pointer; user-select:none;
+}
+li.item:last-child{border-bottom:none}
+li.item:active{background:var(--accent-soft)}
+.box{
+  width:22px; height:22px; flex:none; border-radius:7px;
+  border:2px solid var(--line); display:grid; place-items:center;
+  transition:all .15s; background:var(--card);
+}
+li.item.on .box{background:var(--accent); border-color:var(--accent)}
+.box svg{width:13px; height:13px; stroke:#fff; stroke-width:3; fill:none;
+  stroke-linecap:round; stroke-linejoin:round; opacity:0}
+li.item.on .box svg{opacity:1}
+.txt{font-size:15px; flex:1}
+li.item.on .txt{color:var(--done); text-decoration:line-through}
+.del{
+  flex:none; border:none; background:none; color:var(--sub); font-size:18px;
+  padding:2px 6px; cursor:pointer; line-height:1; border-radius:6px;
+}
+.del:active{color:var(--coral)}
+.add-row{display:flex; gap:8px; padding:10px 16px; background:var(--bg)}
+.add-row input{
+  flex:1; border:1px solid var(--line); border-radius:9px; padding:8px 12px;
+  font-size:14px; font-family:inherit; background:var(--card); color:var(--ink);
+}
+.add-row input::placeholder{color:var(--sub)}
+.add-row input:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:var(--accent)}
+
+.note{
+  background:var(--accent-soft); border:1px solid var(--line); border-radius:12px;
+  padding:12px 14px; margin-top:20px; font-size:13px; color:var(--sub);
+}
+.note b{color:var(--ink)}
+.toast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(80px);
+  background:var(--ink); color:var(--bg); font-size:14px; font-weight:600;
+  padding:11px 18px; border-radius:99px; transition:transform .25s; z-index:50;
+  max-width:90vw; text-align:center;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.foot{margin-top:24px; text-align:center}
+.foot button{background:none; border:none; color:var(--sub); font-size:12px;
+  font-family:inherit; cursor:pointer; text-decoration:underline; padding:8px}
+li.item:focus-visible,.add-row input:focus-visible,.foot button:focus-visible{
+  outline:2px solid var(--coral); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="head-row">
+      <div class="eyebrow">NHA TRANG · 가족여행</div>
+      <div class="live" id="live"><span class="dot"></span><span id="liveTxt">연결 중…</span></div>
+    </div>
+    <h1>나트랑 준비물 체크리스트 🌴</h1>
+    <div class="progress-row">
+      <div class="bar"><i id="barFill"></i></div>
+      <span class="count" id="totalCount">0 / 0</span>
+    </div>
+  </header>
+
+  <div id="sections"></div>
+
+  <div class="note">
+    👫 <b>같이 쓰는 법</b> — 이 주소를 두 분 다 즐겨찾기 해두고 열면 끝이에요.
+    한 명이 체크하면 다른 사람 화면에도 몇 초 안에 자동으로 반영됩니다.
+  </div>
+
+  <div class="foot">
+    <button id="resetAll">전체 초기화</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DB = "https://nhatrang-checklist-default-rtdb.asia-southeast1.firebasedatabase.app/lists/a899d7ed25e360e6d7e9c01d";
+const DATA = [
+  {name:"공통", items:["항공권","유심","여행자보험","패스트트랙","환전","트래블카드","샤워기필터","진드기시트(다이소)","모기기피제","빨래줄","분유포트","젖병건조대","세제 및 수세미","휴대용 가위·집게","물티슈","여행용 티슈","일회용봉투","지퍼백","세면도구","빗","헤어에센스","아기띠","양산","손선풍기","보조배터리","충전기","헤드셋(준우)","래쉬가드","모자"]},
+  {name:"상비약", items:["해열제","냉각패치","밴드","비판텐","체온계","기타 상비약"]},
+  {name:"준우", items:["여벌옷","수영복","아쿠아슈즈","기저귀","방수기저귀","모자","양말","손수건","선글라스","얇은 블랭킷","선크림","크림","수딩젤","세면용품","유모차","빨대컵","수저","유리 내열용기","일회용 턱받이","면봉"]},
+  {name:"준우 · 먹거리", items:["김","물","주스","우유","과자","실온이유식","아기 유기농 햇반","동결건조국","곰탕 등(아이배냇)","아기 육포"]},
+  {name:"준우 · 놀거리", items:["장난감","튜브","구명조끼","무설탕 자일리톨캔디","책","애착인형","베개?","비치타올"]}
+];
+const CACHE_KEY = "nhatrang-rt-cache";
+let state = {chk:{}, custom:{}}; // chk: {"0-3":true}, custom: {key:{s,t,c}}
+
+function normalize(s){
+  state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}};
+}
+try{ normalize(JSON.parse(localStorage.getItem(CACHE_KEY))); }catch(e){}
+
+/* ---------- 서버 통신 (Firebase RTDB REST + SSE) ---------- */
+function dbWrite(path, value){
+  return fetch(DB + path + ".json", {
+    method: value === null ? "DELETE" : "PUT",
+    body: value === null ? undefined : JSON.stringify(value)
+  }).then(r => { if(!r.ok) throw new Error("HTTP "+r.status); })
+    .catch(() => toast("저장 실패 — 인터넷 연결을 확인해 주세요"));
+}
+
+function applyPut(path, data){
+  const segs = path.split("/").filter(Boolean);
+  if(segs.length === 0){ normalize(data); return; }
+  let node = state;
+  for(let i=0; i<segs.length-1; i++){
+    if(typeof node[segs[i]] !== "object" || node[segs[i]] === null) node[segs[i]] = {};
+    node = node[segs[i]];
+  }
+  const last = segs[segs.length-1];
+  if(data === null) delete node[last]; else node[last] = data;
+  normalize(state);
+}
+
+const liveEl = document.getElementById("live");
+function setLive(on, txt){
+  liveEl.classList.toggle("on", on);
+  document.getElementById("liveTxt").textContent = txt;
+}
+let es;
+function connect(){
+  es = new EventSource(DB + ".json");
+  es.addEventListener("put", e => {
+    const d = JSON.parse(e.data);
+    applyPut(d.path, d.data);
+    setLive(true, "실시간 연결됨");
+    saveCache(); render();
+  });
+  es.addEventListener("patch", e => {
+    const d = JSON.parse(e.data);
+    const base = d.path.split("/").filter(Boolean);
+    Object.keys(d.data||{}).forEach(k => applyPut("/"+base.concat(k).join("/"), d.data[k]));
+    saveCache(); render();
+  });
+  es.onerror = () => { setLive(false, "재연결 중…"); }; // EventSource가 알아서 재시도
+}
+function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ---------- 렌더링 ---------- */
+const secEl = document.getElementById("sections");
+function render(){
+  secEl.innerHTML = "";
+  DATA.forEach((sec, si)=>{
+    const customs = Object.entries(state.custom).filter(([k,c])=>c && c.s===si);
+    const total = sec.items.length + customs.length;
+    let done = 0;
+    const box = document.createElement("section");
+    box.className = "grp";
+    const ul = document.createElement("ul");
+    ul.className = "items";
+
+    sec.items.forEach((t, ii)=>{
+      const id = si+"-"+ii, on = !!state.chk[id];
+      if(on) done++;
+      ul.appendChild(makeItem(t, on, ()=>{
+        const nv = on ? null : true;
+        applyPut("/chk/"+id, nv); saveCache(); render();
+        dbWrite("/chk/"+id, nv);
+      }));
+    });
+    customs.forEach(([key, c])=>{
+      if(c.c) done++;
+      ul.appendChild(makeItem(c.t, !!c.c, ()=>{
+        const nv = c.c ? null : true;
+        applyPut("/custom/"+key+"/c", nv); saveCache(); render();
+        dbWrite("/custom/"+key+"/c", nv);
+      }, ()=>{
+        applyPut("/custom/"+key, null); saveCache(); render();
+        dbWrite("/custom/"+key, null);
+      }));
+    });
+
+    const head = document.createElement("div");
+    head.className = "grp-head";
+    head.innerHTML = "<h2>"+esc(sec.name)+"</h2><span class='gc"+(done===total&&total>0?" full":"")+"'>"+done+" / "+total+"</span>";
+    box.appendChild(head);
+    box.appendChild(ul);
+
+    const add = document.createElement("div");
+    add.className = "add-row";
+    const inp = document.createElement("input");
+    inp.placeholder = "+ 항목 추가";
+    inp.addEventListener("keydown", e=>{
+      if(e.key==="Enter" && inp.value.trim()){
+        const key = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+        const item = {s:si, t:inp.value.trim(), c:false};
+        applyPut("/custom/"+key, item); saveCache(); render();
+        dbWrite("/custom/"+key, item);
+      }
+    });
+    add.appendChild(inp);
+    box.appendChild(add);
+    secEl.appendChild(box);
+  });
+  updateTotal();
+}
+function makeItem(text, on, onToggle, onDel){
+  const li = document.createElement("li");
+  li.className = "item"+(on?" on":"");
+  li.tabIndex = 0;
+  li.setAttribute("role","checkbox");
+  li.setAttribute("aria-checked", on);
+  li.setAttribute("aria-label", text);
+  li.innerHTML = "<span class='box'><svg viewBox='0 0 16 16'><polyline points='2.5,8.5 6.5,12.5 13.5,4'/></svg></span><span class='txt'>"+esc(text)+"</span>";
+  if(onDel){
+    const d = document.createElement("button");
+    d.className = "del"; d.textContent = "×"; d.setAttribute("aria-label","삭제");
+    d.addEventListener("click", e=>{ e.stopPropagation(); onDel(); });
+    li.appendChild(d);
+  }
+  li.addEventListener("click", onToggle);
+  li.addEventListener("keydown", e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); onToggle(); }});
+  return li;
+}
+function updateTotal(){
+  let total=0, done=0;
+  DATA.forEach((sec,si)=>{
+    total += sec.items.length;
+    sec.items.forEach((_,ii)=>{ if(state.chk[si+"-"+ii]) done++; });
+  });
+  Object.values(state.custom).forEach(c=>{ if(!c) return; total++; if(c.c) done++; });
+  document.getElementById("totalCount").textContent = done+" / "+total;
+  document.getElementById("barFill").style.width = total?Math.round(done/total*100)+"%":"0%";
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+// 전체 초기화 (두 번 눌러 확정 - 두 사람 모두에게 반영됨)
+let resetArmed = false, resetTimer;
+document.getElementById("resetAll").addEventListener("click", function(){
+  if(!resetArmed){
+    resetArmed = true; this.textContent = "정말 초기화할까요? 두 사람 모두 지워져요 — 한 번 더";
+    resetTimer = setTimeout(()=>{ resetArmed=false; this.textContent="전체 초기화"; }, 4000);
+  }else{
+    clearTimeout(resetTimer); resetArmed = false;
+    state = {chk:{}, custom:{}}; saveCache(); render();
+    dbWrite("", null);
+    this.textContent = "전체 초기화"; toast("초기화했어요");
+  }
+});
+
+render();
+connect();
+</script>
+</body>
+</html>
