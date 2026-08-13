@@ -113,6 +113,7 @@ body{
   border:none; border-radius:12px; padding:10px 16px; font-size:14px;
   font-weight:800; font-family:inherit; cursor:pointer; background:var(--teal); color:#fff;
 }
+.btn.small{padding:8px 13px; border-radius:10px; flex:none}
 input::placeholder{color:var(--sub)}
 input:focus,select:focus{outline:2px solid var(--teal); outline-offset:-1px}
 
@@ -298,11 +299,11 @@ const DAYS = [
   {label:"9/14 (월)", tag:"귀국 🛬"}
 ];
 const CACHE_KEY = "nhatrang-rt-cache-v2";
-let state = {chk:{}, custom:{}, plan:{}};
+let state = {chk:{}, custom:{}, plan:{}, removed:{}};
 let query = "";
 
 function normalize(s){
-  state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{}};
+  state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{}, removed:(s&&s.removed)||{}};
 }
 try{ normalize(JSON.parse(localStorage.getItem(CACHE_KEY))); }catch(e){}
 
@@ -361,7 +362,8 @@ function renderCheck(){
   let anyVisible = false;
   DATA.forEach((sec, si)=>{
     const customs = Object.entries(state.custom).filter(([k,c])=>c && c.s===si);
-    const total = sec.items.length + customs.length;
+    const baseItems = sec.items.map((t,ii)=>[t,ii]).filter(([t,ii])=>!state.removed[si+"-"+ii]);
+    const total = baseItems.length + customs.length;
     let done = 0, visibleCount = 0;
 
     const box = document.createElement("section");
@@ -374,10 +376,12 @@ function renderCheck(){
     const ul = document.createElement("ul");
     ul.className = "items";
 
-    sec.items.forEach((t, ii)=>{
+    baseItems.forEach(([t, ii])=>{
       const id = si+"-"+ii, on = !!state.chk[id];
       if(on) done++;
-      const li = makeItem(t, on, ()=> localThenRemote("/chk/"+id, on?null:true));
+      const li = makeItem(t, on,
+        ()=> localThenRemote("/chk/"+id, on?null:true),
+        ()=> localThenRemote("/removed/"+id, true));
       if(!matches(t)) li.classList.add("hide"); else visibleCount++;
       ul.appendChild(li);
     });
@@ -394,17 +398,21 @@ function renderCheck(){
       + "<span class='gc"+(done===total&&total>0?" full":"")+"'>"+done+" / "+total+"</span>";
     box.appendChild(head);
 
-    // 항목 추가 - 섹션 상단
+    // 항목 추가 - 섹션 상단 (버튼 + 엔터 둘 다)
     const add = document.createElement("div");
     add.className = "add-row";
     const inp = document.createElement("input");
     inp.placeholder = "+ "+sec.name+" 항목 추가";
-    inp.addEventListener("keydown", e=>{
-      if(e.key==="Enter" && inp.value.trim()){
-        localThenRemote("/custom/"+newKey(), {s:si, t:inp.value.trim(), c:false});
-      }
-    });
-    add.appendChild(inp);
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn small"; addBtn.textContent = "추가";
+    addBtn.style.background = "var(--sc)";
+    const submitSec = ()=>{
+      if(!inp.value.trim()) return;
+      localThenRemote("/custom/"+newKey(), {s:si, t:inp.value.trim(), c:false});
+    };
+    inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submitSec(); });
+    addBtn.addEventListener("click", submitSec);
+    add.appendChild(inp); add.appendChild(addBtn);
     box.appendChild(add);
     box.appendChild(ul);
 
@@ -441,8 +449,11 @@ function makeItem(text, on, onToggle, onDel){
 function updateTotal(){
   let total=0, done=0;
   DATA.forEach((sec,si)=>{
-    total += sec.items.length;
-    sec.items.forEach((_,ii)=>{ if(state.chk[si+"-"+ii]) done++; });
+    sec.items.forEach((_,ii)=>{
+      if(state.removed[si+"-"+ii]) return;
+      total++;
+      if(state.chk[si+"-"+ii]) done++;
+    });
   });
   Object.values(state.custom).forEach(c=>{ if(!c) return; total++; if(c.c) done++; });
   document.getElementById("totalCount").textContent = done+" / "+total;
@@ -477,8 +488,12 @@ function renderPlan(){
       if(!inp.value.trim()) return;
       localThenRemote("/plan/d"+di+"/"+newKey(), {t:time.value||"", x:inp.value.trim()});
     };
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn small"; addBtn.textContent = "추가";
+    addBtn.style.background = "var(--dc)";
+    addBtn.addEventListener("click", submit);
     inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submit(); });
-    add.appendChild(time); add.appendChild(inp);
+    add.appendChild(time); add.appendChild(inp); add.appendChild(addBtn);
     card.appendChild(add);
 
     const entries = Object.entries((state.plan||{})["d"+di]||{})
@@ -578,9 +593,9 @@ document.getElementById("resetAll").addEventListener("click", function(){
     resetTimer = setTimeout(()=>{ resetArmed=false; this.textContent="준비물 전체 초기화"; }, 4000);
   }else{
     clearTimeout(resetTimer); resetArmed = false;
-    state.chk = {}; state.custom = {}; saveCache(); renderAll();
-    dbWrite("/chk", null); dbWrite("/custom", null);
-    this.textContent = "준비물 전체 초기화"; toast("초기화했어요");
+    state.chk = {}; state.custom = {}; state.removed = {}; saveCache(); renderAll();
+    dbWrite("/chk", null); dbWrite("/custom", null); dbWrite("/removed", null);
+    this.textContent = "준비물 전체 초기화"; toast("초기화했어요 (지운 기본 항목도 복구)");
   }
 });
 
