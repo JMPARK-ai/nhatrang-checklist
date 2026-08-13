@@ -646,7 +646,7 @@ function renderPlan(){
     add.appendChild(time); add.appendChild(inp); add.appendChild(addBtn);
     card.appendChild(add);
 
-    // 시간별 표: 06~23시 기본, 그 밖 시간은 자동 확장
+    // 시간별 표: 00~23시 전체 (야간 비행 대비)
     const entries = Object.entries((state.plan||{})["d"+di]||{}).filter(([k,v])=>v);
     const noTime = entries.filter(([k,en])=>!en.t).sort((a,b)=>a[0].localeCompare(b[0]));
     const byHour = {};
@@ -655,8 +655,7 @@ function renderPlan(){
       (byHour[h] = byHour[h] || []).push([k,en]);
     });
     Object.values(byHour).forEach(arr=>arr.sort((a,b)=>a[1].t.localeCompare(b[1].t)));
-    let start = 6, end = 23;
-    Object.keys(byHour).forEach(h=>{ h=+h; if(h<start) start=h; if(h>end) end=h; });
+    const start = 0, end = 23;
 
     const table = document.createElement("div");
     table.className = "slots";
