@@ -1,0 +1,17 @@
+{
+  "name": "나트랑 여행 준비물 · 일정",
+  "short_name": "나트랑",
+  "description": "나트랑 가족여행 준비물 체크리스트와 일정표 (실시간 공유)",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0E8C7F",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
