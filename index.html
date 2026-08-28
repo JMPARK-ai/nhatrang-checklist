@@ -176,6 +176,13 @@ li.item.on .txt{color:var(--done); text-decoration:line-through}
   padding:2px 6px; cursor:pointer; line-height:1; border-radius:6px;
 }
 .del:active{color:var(--coral)}
+.mv{
+  flex:none; border:none; background:none; color:var(--sub); font-size:13px;
+  padding:4px 5px; cursor:pointer; line-height:1; border-radius:6px;
+}
+.mv:disabled{opacity:.25; cursor:default}
+.mv:active:not(:disabled){color:var(--teal)}
+.entry .mv{font-size:11px; padding:3px 4px}
 .empty-search{
   grid-column:1/-1; text-align:center; color:var(--sub); font-size:14px; padding:30px 0;
 }
@@ -336,12 +343,12 @@ const DAYS = [
   {label:"9/14 (월)", tag:"귀국 🛬"}
 ];
 const CACHE_KEY = "nhatrang-rt-cache-v2";
-let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}};
+let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}, ord:{}};
 let query = "";
 
 function normalize(s){
   state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{},
-    removed:(s&&s.removed)||{}, sections:(s&&s.sections)||{}};
+    removed:(s&&s.removed)||{}, sections:(s&&s.sections)||{}, ord:(s&&s.ord)||{}};
 }
 try{ normalize(JSON.parse(localStorage.getItem(CACHE_KEY))); }catch(e){}
 
@@ -390,6 +397,15 @@ function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(state)
 function localThenRemote(path, value){
   applyPut(path, value); saveCache(); renderAll(); dbWrite(path, value);
 }
+function dbPatch(path, obj){
+  return fetch(DB + path + ".json", {method:"PATCH", body:JSON.stringify(obj)})
+    .then(r => { if(!r.ok) throw new Error("HTTP "+r.status); })
+    .catch(() => toast("저장 실패 — 인터넷 연결을 확인해 주세요"));
+}
+function localThenRemotePatch(path, obj){
+  Object.keys(obj).forEach(k => applyPut(path+"/"+k, obj[k]));
+  saveCache(); renderAll(); dbPatch(path, obj);
+}
 function newKey(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
 /* ---------- 준비물 렌더링 ---------- */
@@ -423,21 +439,36 @@ function renderCheck(){
     const ul = document.createElement("ul");
     ul.className = "items";
 
-    baseItems.forEach(([t, ii])=>{
-      const id = sec.id+"-"+ii, on = !!state.chk[id];
-      if(on) done++;
-      const li = makeItem(t, on,
-        ()=> localThenRemote("/chk/"+id, on?null:true),
-        ()=> localThenRemote("/removed/"+id, true));
-      if(!matches(t)) li.classList.add("hide"); else visibleCount++;
-      ul.appendChild(li);
+    // 기본 + 직접 추가 항목을 한 목록으로 합쳐 저장된 순서(ord)대로 정렬
+    const sKey = "s"+sec.id, sord = state.ord[sKey]||{};
+    const rows = [];
+    baseItems.forEach(([t, ii])=> rows.push({id:sec.id+"-"+ii, text:t, base:true}));
+    customs.forEach(([key, c])=> rows.push({id:key, text:String(c.t), c:c}));
+    rows.forEach((r, i)=>{ r.def = i; });
+    rows.sort((a, b)=>{
+      const oa = typeof sord[a.id]==="number" ? sord[a.id] : 10000+a.def;
+      const ob = typeof sord[b.id]==="number" ? sord[b.id] : 10000+b.def;
+      return oa-ob;
     });
-    customs.forEach(([key, c])=>{
-      if(c.c) done++;
-      const li = makeItem(c.t, !!c.c,
-        ()=> localThenRemote("/custom/"+key+"/c", c.c?null:true),
-        ()=> localThenRemote("/custom/"+key, null));
-      if(!matches(String(c.t))) li.classList.add("hide"); else visibleCount++;
+    rows.forEach((r, idx)=>{
+      const on = r.base ? !!state.chk[r.id] : !!r.c.c;
+      if(on) done++;
+      const li = makeItem(r.text, on,
+        r.base ? ()=> localThenRemote("/chk/"+r.id, state.chk[r.id]?null:true)
+               : ()=> localThenRemote("/custom/"+r.id+"/c", r.c.c?null:true),
+        r.base ? ()=> localThenRemote("/removed/"+r.id, true)
+               : ()=> localThenRemote("/custom/"+r.id, null),
+        query ? null : {
+          canUp: idx>0, canDown: idx<rows.length-1,
+          move: dir=>{
+            const arr = rows.map(x=>x.id), j = idx+dir;
+            const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+            const ordObj = {};
+            arr.forEach((id, i)=>{ ordObj[id] = i; });
+            localThenRemote("/ord/"+sKey, ordObj);
+          }
+        });
+      if(!matches(r.text)) li.classList.add("hide"); else visibleCount++;
       ul.appendChild(li);
     });
 
@@ -458,6 +489,7 @@ function renderCheck(){
         }
         clearTimeout(timer);
         customs.forEach(([key])=>{ applyPut("/custom/"+key, null); dbWrite("/custom/"+key, null); });
+        applyPut("/ord/"+sKey, null); dbWrite("/ord/"+sKey, null);
         localThenRemote("/sections/"+sec.id, null);
       });
       head.appendChild(del);
@@ -514,7 +546,7 @@ function renderCheck(){
   rebuildGaddOptions();
   updateTotal();
 }
-function makeItem(text, on, onToggle, onDel){
+function makeItem(text, on, onToggle, onDel, mv){
   const li = document.createElement("li");
   li.className = "item"+(on?" on":"");
   li.tabIndex = 0;
@@ -522,6 +554,17 @@ function makeItem(text, on, onToggle, onDel){
   li.setAttribute("aria-checked", on);
   li.setAttribute("aria-label", text);
   li.innerHTML = "<span class='box'><svg viewBox='0 0 16 16'><polyline points='2.5,8.5 6.5,12.5 13.5,4'/></svg></span><span class='txt'>"+esc(text)+"</span>";
+  if(mv){
+    const up = document.createElement("button");
+    up.className = "mv"; up.textContent = "▲"; up.disabled = !mv.canUp;
+    up.setAttribute("aria-label","위로 이동");
+    up.addEventListener("click", e=>{ e.stopPropagation(); mv.move(-1); });
+    const dn = document.createElement("button");
+    dn.className = "mv"; dn.textContent = "▼"; dn.disabled = !mv.canDown;
+    dn.setAttribute("aria-label","아래로 이동");
+    dn.addEventListener("click", e=>{ e.stopPropagation(); mv.move(1); });
+    li.appendChild(up); li.appendChild(dn);
+  }
   if(onDel){
     const d = document.createElement("button");
     d.className = "del"; d.textContent = "×"; d.setAttribute("aria-label","삭제");
@@ -529,7 +572,7 @@ function makeItem(text, on, onToggle, onDel){
     li.appendChild(d);
   }
   li.addEventListener("click", onToggle);
-  li.addEventListener("keydown", e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); onToggle(); }});
+  li.addEventListener("keydown", e=>{ if(e.target!==li) return; if(e.key===" "||e.key==="Enter"){ e.preventDefault(); onToggle(); }});
   return li;
 }
 function updateTotal(){
@@ -568,6 +611,7 @@ function makeEntry(di, key, en){
     const doSave = ()=>{
       if(!editing.draftX.trim()) return;
       const v = {t:editing.draftT||"", x:editing.draftX.trim()};
+      if(typeof en.o === "number") v.o = en.o; // 수동 순서 유지
       editing = null;
       localThenRemote("/plan/d"+di+"/"+key, v);
     };
@@ -597,6 +641,15 @@ function makeEntry(di, key, en){
   chip.setAttribute("aria-label", en.x+" 수정");
   chip.innerHTML = (en.t ? "<span class='et'>"+en.t+"</span>" : "")
     + "<span class='ex'>"+esc(en.x)+"</span><span class='pencil'>✏️</span>";
+  const up = document.createElement("button");
+  up.className = "mv"; up.textContent = "▲";
+  up.setAttribute("aria-label","위로 이동");
+  up.addEventListener("click", e=>{ e.stopPropagation(); movePlanEntry(di, key, -1); });
+  const dn = document.createElement("button");
+  dn.className = "mv"; dn.textContent = "▼";
+  dn.setAttribute("aria-label","아래로 이동");
+  dn.addEventListener("click", e=>{ e.stopPropagation(); movePlanEntry(di, key, 1); });
+  chip.appendChild(up); chip.appendChild(dn);
   chip.addEventListener("click", e=>{
     e.stopPropagation();
     editing = {di, key, draftT:en.t||"", draftX:en.x, focusPending:true};
@@ -621,6 +674,58 @@ function makeSlot(di, label, list, prefill, timeInp, txtInp){
   });
   row.appendChild(tl); row.appendChild(body);
   return row;
+}
+
+// 시간대 안 정렬: 수동 순서(o) 우선, 없으면 시간 → 키 순
+function entrySort(a, b){
+  const oa = typeof a[1].o==="number" ? a[1].o : 10000;
+  const ob = typeof b[1].o==="number" ? b[1].o : 10000;
+  return (oa-ob) || String(a[1].t||"").localeCompare(String(b[1].t||"")) || a[0].localeCompare(b[0]);
+}
+function daySlots(di){
+  const entries = Object.entries((state.plan||{})["d"+di]||{}).filter(([k,v])=>v);
+  const noTime = entries.filter(([k,en])=>!en.t).sort(entrySort);
+  const byHour = {};
+  entries.filter(([k,en])=>en.t).forEach(([k,en])=>{
+    const h = parseInt(en.t, 10);
+    (byHour[h] = byHour[h] || []).push([k,en]);
+  });
+  Object.values(byHour).forEach(arr=>arr.sort(entrySort));
+  return {noTime:noTime, byHour:byHour};
+}
+// 일정 항목을 한 줄 위/아래로: 같은 시간대 안에서는 순서 교체,
+// 시간대 맨 끝에서는 위/아래 시간대로 이동 (미정 ↔ 00시 포함)
+function movePlanEntry(di, key, dir){
+  const ds = daySlots(di);
+  const slots = [{h:-1, list:ds.noTime}];
+  for(let h=0; h<=23; h++) slots.push({h:h, list:ds.byHour[h]||[]});
+  let si = -1, pi = -1;
+  slots.forEach((s,i)=> s.list.forEach(([k],p)=>{ if(k===key){ si=i; pi=p; } }));
+  if(si < 0) return;
+  const slot = slots[si], en = slot.list[pi][1];
+  const patch = {};
+  const j = pi + dir;
+  if(j >= 0 && j < slot.list.length){
+    // 같은 시간대 안에서 자리 바꾸기
+    const arr = slot.list.slice();
+    const tmp = arr[pi]; arr[pi] = arr[j]; arr[j] = tmp;
+    arr.forEach(([k,e],i)=>{ patch[k] = {t:e.t||"", x:e.x, o:i}; });
+  }else{
+    // 시간대 경계 → 위/아래 시간대로 (시간의 분은 유지)
+    const ti = si + dir;
+    if(ti < 0 || ti >= slots.length) return;
+    const target = slots[ti];
+    const mins = (en.t && en.t.length >= 5) ? en.t.slice(3) : "00";
+    const newT = target.h < 0 ? "" : String(target.h).padStart(2,"0")+":"+mins;
+    if(dir < 0){ // 위 시간대의 맨 아래로
+      target.list.forEach(([k,e],i)=>{ patch[k] = {t:e.t||"", x:e.x, o:i}; });
+      patch[key] = {t:newT, x:en.x, o:target.list.length};
+    }else{ // 아래 시간대의 맨 위로
+      patch[key] = {t:newT, x:en.x, o:0};
+      target.list.forEach(([k,e],i)=>{ patch[k] = {t:e.t||"", x:e.x, o:i+1}; });
+    }
+  }
+  localThenRemotePatch("/plan/d"+di, patch);
 }
 
 function renderPlan(){
@@ -657,14 +762,8 @@ function renderPlan(){
     card.appendChild(add);
 
     // 시간별 표: 00~23시 전체 (야간 비행 대비)
-    const entries = Object.entries((state.plan||{})["d"+di]||{}).filter(([k,v])=>v);
-    const noTime = entries.filter(([k,en])=>!en.t).sort((a,b)=>a[0].localeCompare(b[0]));
-    const byHour = {};
-    entries.filter(([k,en])=>en.t).forEach(([k,en])=>{
-      const h = parseInt(en.t, 10);
-      (byHour[h] = byHour[h] || []).push([k,en]);
-    });
-    Object.values(byHour).forEach(arr=>arr.sort((a,b)=>a[1].t.localeCompare(b[1].t)));
+    const ds = daySlots(di);
+    const noTime = ds.noTime, byHour = ds.byHour;
     const start = 0, end = 23;
 
     const table = document.createElement("div");
@@ -750,8 +849,8 @@ document.getElementById("resetAll").addEventListener("click", function(){
     resetTimer = setTimeout(()=>{ resetArmed=false; this.textContent="준비물 전체 초기화"; }, 4000);
   }else{
     clearTimeout(resetTimer); resetArmed = false;
-    state.chk = {}; state.custom = {}; state.removed = {}; state.sections = {}; saveCache(); renderAll();
-    dbWrite("/chk", null); dbWrite("/custom", null); dbWrite("/removed", null); dbWrite("/sections", null);
+    state.chk = {}; state.custom = {}; state.removed = {}; state.sections = {}; state.ord = {}; saveCache(); renderAll();
+    dbWrite("/chk", null); dbWrite("/custom", null); dbWrite("/removed", null); dbWrite("/sections", null); dbWrite("/ord", null);
     this.textContent = "준비물 전체 초기화"; toast("초기화했어요 (기본 목록으로 복구)");
   }
 });
