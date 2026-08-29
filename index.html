@@ -471,6 +471,13 @@ ul.brows{list-style:none}
 .brow .bw{text-align:right}
 .brow .bw small{display:block; color:var(--sub); font-weight:600; font-size:10.5px; line-height:1.3}
 .brow .bw small.spent{color:var(--coral); font-weight:800}
+.bchk{
+  flex:none; width:22px; height:22px; border-radius:8px; border:2px solid var(--line);
+  background:var(--card); color:#fff; font-size:13px; font-weight:900; line-height:1;
+  display:grid; place-items:center; cursor:pointer; padding:0;
+}
+.bchk.on{background:var(--ok); border-color:var(--ok)}
+.spend-label{font-size:12px; font-weight:800; color:var(--sub); flex:1 1 100%; min-width:0}
 .bhead .bsub small{display:block; font-size:10.5px; color:var(--sub); font-weight:600; text-align:right}
 /* 경비 지갑 */
 .wallet{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px}
@@ -585,8 +592,8 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="wallet" id="walletCard"></div>
     <div class="bgrid" id="budGrid"></div>
     <div class="note">
-      💡 일정 항목을 눌러 <b>금액</b>을 넣으면 그 날짜 칸에 자동으로 모여요.
-      숙소·환전처럼 일정에 없는 비용은 각 칸에서 바로 추가하면 됩니다. 이것도 실시간 공유돼요.
+      💡 일정에 <b>금액</b>을 넣으면 그 날짜 칸에 자동으로 모여요. 일정에 없는 비용은 각 칸에서 직접 추가.
+      돈을 쓰면 앞의 <b>✓</b> 를 눌러 실제 쓴 금액을 확정하세요 — 위 지갑의 '쓴 돈'에서 자동 차감됩니다.
     </div>
   </div>
 
@@ -1237,19 +1244,54 @@ function renderPlan(){
   }
   card.appendChild(uz);
 
+  // 일정 배치: 시간 비례가 기본이되, 블록이 겹치면 뒤 일정을 아래로 밀어
+  // 전부 보이게 한다 (그만큼 시간 눈금도 같이 밀리는 누적 오프셋 방식)
+  const evs = ds.timed.map(([k, en])=>{
+    const s = minsOf(en.t);
+    const hasE = en.e && minsOf(en.e) > s;
+    let e = hasE ? minsOf(en.e) : s + 45;
+    return {k, en, s, e:Math.min(e, 1440), hasE};
+  }).sort((a,b)=> a.s-b.s || a.e-b.e);
+  // 종료 시간이 없는 일정은 다음 일정 시작 전까지만 그려서 불필요한 밀림을 줄임
+  evs.forEach((v, i)=>{
+    if(v.hasE) return;
+    const next = evs.find((o, j)=> j > i && o.s > v.s);
+    if(next) v.e = Math.max(v.s + 30, Math.min(v.e, next.s));
+  });
+  let extra = 0, prevBottom = -1e9;
+  const bps = []; // {m, extra}: m분 이후의 누적 밀림
+  evs.forEach(v=>{
+    v.h = Math.max(30, (v.e - v.s)*PXPM - 3);
+    let top = TL_TOP + v.s*PXPM + extra;
+    if(top < prevBottom + 3){
+      extra += prevBottom + 3 - top;
+      top = prevBottom + 3;
+    }
+    bps.push({m:v.s, extra:extra});
+    v.top = top;
+    prevBottom = Math.max(prevBottom, top + v.h);
+  });
+  const offsetAt = m => { let o = 0; for(const b of bps){ if(b.m <= m) o = b.extra; else break; } return o; };
+  const yToMin = y => { // tl 내부 y좌표 → 분 (밀림 구간 역보정)
+    let o = 0;
+    for(const b of bps){ if(y >= TL_TOP + b.m*PXPM + b.extra) o = b.extra; else break; }
+    return Math.max(0, Math.min(1439, (y - TL_TOP - o) / PXPM));
+  };
+
   // 타임라인
   const tl = document.createElement("div");
   tl.className = "tl";
-  tl.style.height = (24*HOUR_PX + TL_TOP + TL_BOTTOM) + "px";
+  tl.style.height = (24*HOUR_PX + TL_TOP + TL_BOTTOM + extra) + "px";
   for(let h=0; h<=24; h++){
+    const hy = TL_TOP + h*HOUR_PX + offsetAt(h*60);
     const line = document.createElement("div");
     line.className = "tl-hour" + (h%6===0 ? " solid" : "");
-    line.style.top = (TL_TOP + h*HOUR_PX) + "px";
+    line.style.top = hy + "px";
     tl.appendChild(line);
     if(h < 24){
       const lb = document.createElement("div");
       lb.className = "tl-hlabel";
-      lb.style.top = (TL_TOP + h*HOUR_PX) + "px";
+      lb.style.top = hy + "px";
       lb.textContent = String(h).padStart(2,"0")+":00";
       tl.appendChild(lb);
     }
@@ -1264,52 +1306,22 @@ function renderPlan(){
     const nowMin = n.getHours()*60 + n.getMinutes();
     const nl = document.createElement("div");
     nl.className = "nowline";
-    nl.style.top = (TL_TOP + nowMin*PXPM) + "px";
+    nl.style.top = (TL_TOP + nowMin*PXPM + offsetAt(nowMin)) + "px";
     tl.appendChild(nl);
   }
-
-  // 겹치는 일정은 캘린더 앱처럼 계단식으로 (뒤 일정이 약간 들여쓰기+위에 얹힘)
-  const evs = ds.timed.map(([k, en])=>{
-    const s = minsOf(en.t);
-    const hasE = en.e && minsOf(en.e) > s;
-    let e = hasE ? minsOf(en.e) : s + 45;
-    return {k, en, s, e:Math.min(e, 1440), hasE};
-  }).sort((a,b)=> a.s-b.s || a.e-b.e);
-  // 종료 시간이 없는 일정은 다음 일정 시작 전까지만 그려서 불필요한 겹침을 줄임
-  evs.forEach((v, i)=>{
-    if(v.hasE) return;
-    const next = evs.find((o, j)=> j > i && o.s > v.s);
-    if(next) v.e = Math.max(v.s + 30, Math.min(v.e, next.s));
-  });
-  let cluster = null;
-  const clusters = [];
-  evs.forEach(v=>{
-    if(!cluster || v.s >= cluster.maxE){ cluster = {items:[], maxE:v.e}; clusters.push(cluster); }
-    cluster.items.push(v);
-    cluster.maxE = Math.max(cluster.maxE, v.e);
-  });
-  clusters.forEach(c=>{
-    const lanes = [];
-    c.items.forEach(v=>{
-      let li = lanes.findIndex(endM => endM <= v.s);
-      if(li < 0){ lanes.push(v.e); li = lanes.length-1; } else lanes[li] = Math.max(lanes[li], v.e);
-      v.lane = li;
-    });
-  });
 
   evs.forEach(v=>{
     const el = document.createElement("div");
     el.className = "ev";
-    el.style.top = (TL_TOP + v.s*PXPM) + "px";
-    el.style.height = Math.max(26, (v.e - v.s)*PXPM - 3) + "px";
-    el.style.left = (v.lane * 16) + "px";
+    el.style.top = v.top + "px";
+    el.style.height = v.h + "px";
+    el.style.left = "0";
     el.style.right = "0";
-    el.style.zIndex = 3 + v.lane;
     // 메모·장소 상세는 블록에 늘어놓지 않고(잘려서 지저분) 탭하면 보기 시트에서.
     // 있다는 표시(📝·📍)만 시간 줄에 남긴다.
     const marks = (typeof v.en.w==="number" && v.en.w>0 ? " · 💰"+fmtWon(v.en.w) : "")
       + (v.en.m ? " · 📝" : "") + (typeof v.en.la==="number" ? " · 📍" : "");
-    const blockH = Math.max(26, (v.e - v.s)*PXPM - 3);
+    const blockH = v.h;
     if(blockH < 42){
       // 짧은 블록은 시간+제목 한 줄로
       el.classList.add("compact");
@@ -1330,7 +1342,7 @@ function renderPlan(){
     bindDrag(g, {
       start(){ el.classList.add("dragging"); origTop = parseFloat(el.style.top); },
       move(x, y, dx, dy){
-        const maxTop = TL_TOP + 1440*PXPM - parseFloat(el.style.height);
+        const maxTop = TL_TOP + 1440*PXPM + extra - v.h;
         el.style.top = Math.max(TL_TOP - 30, Math.min(maxTop, origTop + dy)) + "px";
       },
       end(commit, x, y){
@@ -1343,8 +1355,7 @@ function renderPlan(){
           toast("시간 미정으로 옮겼어요");
           return;
         }
-        const top = Math.max(TL_TOP, parseFloat(el.style.top));
-        let ns = Math.round(((top - TL_TOP) / PXPM) / 10) * 10;
+        let ns = Math.round(yToMin(parseFloat(el.style.top)) / 10) * 10;
         ns = Math.max(0, Math.min(1439, ns));
         const dur = v.en.e ? (minsOf(v.en.e) - v.s) : 0;
         const over = {t: fmtMin(ns)};
@@ -1359,7 +1370,7 @@ function renderPlan(){
   tl.addEventListener("click", e=>{
     if(e.target.closest(".ev")) return;
     const rect = tl.getBoundingClientRect();
-    let m = Math.round(((e.clientY - rect.top - TL_TOP) / PXPM) / 30) * 30;
+    let m = Math.round(yToMin(e.clientY - rect.top) / 30) * 30;
     m = Math.max(0, Math.min(1410, m));
     openSheet({mode:"add", di:di, t:fmtMin(m)});
   });
@@ -1391,7 +1402,7 @@ function renderPlan(){
       end(commit, x, y){
         const tlRect = tl.getBoundingClientRect();
         if(commit && y >= tlRect.top && y <= tlRect.bottom){
-          let m = Math.round(((y - tlRect.top - TL_TOP) / PXPM) / 10) * 10;
+          let m = Math.round(yToMin(y - tlRect.top) / 10) * 10;
           m = Math.max(0, Math.min(1439, m));
           localThenRemote("/plan/d"+di+"/"+k, entryValue(en, {t:fmtMin(m)}));
           toast(fmtMin(m)+" 으로 옮겼어요");
@@ -1606,6 +1617,47 @@ function bwHtml(w, s){
     + "</span>";
 }
 let fundEd = null; // 가져간 돈(환전) 인라인 수정 {draft, unit}
+let spendEd = null; // 지출 체크 입력 {kind:'plan'|'own', di?, bkey?, key, draft, unit, label}
+// 체크박스: 안 썼으면 체크 → 실지출 입력, 썼으면 다시 눌러 취소
+function bchkBtn(on, onClick){
+  const b = document.createElement("button");
+  b.className = "bchk" + (on ? " on" : "");
+  b.textContent = on ? "✓" : "";
+  b.setAttribute("aria-label", on ? "지출 체크 취소" : "지출 체크");
+  b.addEventListener("click", e=>{ e.stopPropagation(); onClick(); });
+  return b;
+}
+// 지출 금액 입력 행 (계획 금액이 미리 채워짐)
+function spendEditRow(onSave){
+  const li = document.createElement("li");
+  li.className = "brow-edit";
+  const lbl = document.createElement("span");
+  lbl.className = "spend-label";
+  lbl.textContent = "💸 " + spendEd.label + " — 실제 쓴 돈";
+  const wi = document.createElement("input");
+  wi.className = "bwon"; wi.inputMode = "numeric"; wi.value = spendEd.draft;
+  wi.addEventListener("input", ()=>{ spendEd.draft = wi.value; });
+  const ui = unitSel();
+  ui.value = spendEd.unit;
+  ui.addEventListener("change", ()=>{ spendEd.unit = ui.value; });
+  const doSave = ()=>{
+    const won = toWon(parseWon(spendEd.draft), spendEd.unit);
+    if(!won){ toast("쓴 금액을 넣어 주세요"); return; }
+    spendEd = null;
+    onSave(won);
+  };
+  const ok = document.createElement("button");
+  ok.className = "btn small"; ok.textContent = "확인";
+  ok.style.background = "var(--dc)";
+  ok.addEventListener("click", doSave);
+  wi.addEventListener("keydown", e=>{ if(e.key==="Enter") doSave(); });
+  const cc = document.createElement("button");
+  cc.className = "btn small ghost"; cc.textContent = "취소";
+  cc.addEventListener("click", ()=>{ spendEd = null; renderBudget(); });
+  li.appendChild(lbl); li.appendChild(wi); li.appendChild(ui); li.appendChild(ok); li.appendChild(cc);
+  setTimeout(()=>{ wi.focus(); wi.select(); }, 0);
+  return li;
+}
 function unitSel(){
   const s = document.createElement("select");
   s.className = "unit-sel"; s.setAttribute("aria-label","통화");
@@ -1673,13 +1725,30 @@ function renderBudget(){
 
     const ul = document.createElement("ul");
     ul.className = "brows";
-    // 일정 연동 항목 - 탭하면 그 일정 수정 시트가 열림
+    // 일정 연동 항목 - ✓ 로 지출 체크, 탭하면 그 일정 시트
     linked.forEach(([k, en])=>{
+      if(spendEd && spendEd.kind==="plan" && spendEd.di===sec.di && spendEd.key===k){
+        ul.appendChild(spendEditRow(won=>{
+          localThenRemote("/plan/d"+sec.di+"/"+k, entryValue(en, {s:won}));
+          toast("지출 " + fmtWon(won) + " 기록했어요");
+        }));
+        return;
+      }
       const li = document.createElement("li");
       li.className = "brow";
       li.innerHTML = "<span class='bt'>"+(en.t||"미정")+"</span>"
         + "<span class='bx'>"+esc(en.x)+" <small>🗓️ 일정</small></span>"
         + bwHtml(typeof en.w==="number"?en.w:0, en.s);
+      const spent = typeof en.s==="number" && en.s>0;
+      li.insertBefore(bchkBtn(spent, ()=>{
+        if(spent){
+          localThenRemote("/plan/d"+sec.di+"/"+k, entryValue(en, {s:0}));
+          toast("지출 체크를 취소했어요");
+        }else{
+          spendEd = {kind:"plan", di:sec.di, key:k, draft:String(en.w||""), unit:"krw", label:en.x};
+          renderBudget();
+        }
+      }), li.firstChild);
       li.addEventListener("click", ()=> openSheet({mode:"edit", di:sec.di, key:k}));
       ul.appendChild(li);
     });
@@ -1730,10 +1799,27 @@ function renderBudget(){
         ul.appendChild(li);
         return;
       }
+      if(spendEd && spendEd.kind==="own" && spendEd.bkey===bkey && spendEd.key===k){
+        ul.appendChild(spendEditRow(won=>{
+          localThenRemote("/budget/"+bkey+"/"+k, {x:v.x, w:v.w||0, s:won});
+          toast("지출 " + fmtWon(won) + " 기록했어요");
+        }));
+        return;
+      }
       const li = document.createElement("li");
       li.className = "brow";
       li.innerHTML = "<span class='bx'>"+esc(v.x)+"</span>"
         + bwHtml(typeof v.w==="number" ? v.w : 0, v.s);
+      const spent = typeof v.s==="number" && v.s>0;
+      li.insertBefore(bchkBtn(spent, ()=>{
+        if(spent){
+          localThenRemote("/budget/"+bkey+"/"+k, {x:v.x, w:v.w||0});
+          toast("지출 체크를 취소했어요");
+        }else{
+          spendEd = {kind:"own", bkey:bkey, key:k, draft:String(v.w||""), unit:"krw", label:v.x};
+          renderBudget();
+        }
+      }), li.firstChild);
       li.addEventListener("click", ()=>{
         const iw = String(v.w||""), is = String(v.s||"");
         bgEd = {bkey:bkey, key:k, draftX:v.x, draftW:iw, draftS:is,
