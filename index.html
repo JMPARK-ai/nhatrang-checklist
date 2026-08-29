@@ -497,6 +497,23 @@ ul.brows{list-style:none}
 }
 .wedit .btn.small{padding:6px 9px; font-size:12px; border-radius:8px}
 
+/* ---------- 메모장 ---------- */
+.memo-list{display:grid; gap:10px; grid-template-columns:1fr; align-items:start}
+@media (min-width:720px){ .memo-list{grid-template-columns:repeat(3,1fr)} }
+.mcard{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow); padding:12px 15px 11px; cursor:pointer;
+}
+.mcard:active{background:var(--s0soft)}
+.mcard h4{font-size:14.5px; font-weight:800; word-break:break-word; line-height:1.4}
+.mcard p{
+  font-size:12.5px; color:var(--sub); line-height:1.5; margin-top:2px;
+  max-height:3em; overflow:hidden; white-space:pre-line; word-break:break-word;
+}
+.mcard .mdate{font-size:10.5px; color:var(--sub); margin-top:7px; font-variant-numeric:tabular-nums}
+.memo-empty{text-align:center; color:var(--sub); font-size:13.5px; padding:36px 0; line-height:1.7}
+#nvX{white-space:pre-line; font-size:15px; font-weight:600; line-height:1.65; word-break:break-word}
+
 /* ---------- 기타 ---------- */
 .note{
   background:var(--card); border:1px dashed var(--line); border-radius:14px;
@@ -534,6 +551,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
       <button class="tab" id="tabPlan">🗓️ 일정</button>
       <button class="tab" id="tabCheck">🧳 준비물</button>
       <button class="tab" id="tabBud">💰 예산</button>
+      <button class="tab" id="tabMemo">📝 메모</button>
     </div>
   </div>
 
@@ -586,6 +604,13 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div id="planGrid"></div>
   </div>
 
+  <!-- ===== 메모장 탭 ===== -->
+  <div id="viewMemo" class="hidden">
+    <div class="shead"><h2>📝 메모장</h2><span class="smeta" id="memoMeta"></span></div>
+    <button class="btn" id="memoAdd" style="width:100%; margin-bottom:12px; padding:12px 0">+ 새 메모</button>
+    <div class="memo-list" id="memoList"></div>
+  </div>
+
   <!-- ===== 예산 탭 ===== -->
   <div id="viewBud" class="hidden">
     <div class="shead"><h2>💰 예산</h2><span class="smeta" id="budTotal"></span></div>
@@ -605,6 +630,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
   <button data-tab="plan">🗓️<span>일정</span></button>
   <button data-tab="check">🧳<span>준비물</span></button>
   <button data-tab="bud">💰<span>예산</span></button>
+  <button data-tab="memo">📝<span>메모</span></button>
 </nav>
 
 <!-- ===== 일정 편집 시트 ===== -->
@@ -687,6 +713,30 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
   </div><!-- /shForm -->
 </div>
 
+<!-- ===== 메모 시트 ===== -->
+<div class="sheet" id="nsheet" role="dialog" aria-modal="true">
+  <div class="sheet-head">
+    <h3 id="nsTitle">메모</h3>
+    <button class="del" id="nsClose" aria-label="닫기">×</button>
+  </div>
+  <div id="nsView" class="hidden">
+    <div class="v-line" id="nvDate" style="color:var(--sub); font-size:12px"></div>
+    <div id="nvX"></div>
+    <div class="sheet-actions">
+      <button class="btn" id="nvEdit">✏️ 수정</button>
+      <button class="btn ghost" id="nvClose">닫기</button>
+    </div>
+  </div>
+  <div id="nsForm" class="hidden">
+    <textarea id="nsX" rows="9" placeholder="메모를 적어 주세요&#10;첫 줄이 목록에서 제목이 돼요"></textarea>
+    <div class="sheet-actions">
+      <button class="btn" id="nsSave">저장</button>
+      <button class="btn danger hidden" id="nsDel">삭제</button>
+      <button class="btn ghost" id="nsCancel">취소</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -725,13 +775,13 @@ const PRESETS = [
   {n:"탑바 머드온천", la:12.2809, lo:109.1745}
 ];
 const CACHE_KEY = "nhatrang-rt-cache-v2";
-let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}, ord:{}, edits:{}, budget:{}};
+let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}, ord:{}, edits:{}, budget:{}, notes:{}};
 let query = "";
 
 function normalize(s){
   state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{},
     removed:(s&&s.removed)||{}, sections:(s&&s.sections)||{}, ord:(s&&s.ord)||{},
-    edits:(s&&s.edits)||{}, budget:(s&&s.budget)||{}};
+    edits:(s&&s.edits)||{}, budget:(s&&s.budget)||{}, notes:(s&&s.notes)||{}};
 }
 try{ normalize(JSON.parse(localStorage.getItem(CACHE_KEY))); }catch(e){}
 
@@ -1590,7 +1640,7 @@ document.getElementById("shDel").addEventListener("click", ()=>{
 });
 document.getElementById("shCancel").addEventListener("click", closeSheet);
 document.getElementById("shClose").addEventListener("click", closeSheet);
-ovl.addEventListener("click", closeSheet);
+ovl.addEventListener("click", ()=>{ if(noteCtx) closeNoteSheet(); else closeSheet(); });
 
 /* ---------- 구글맵 연결 (장소가 붙은 일정 → 구글맵 앱으로) ---------- */
 function gmapUrl(en){
@@ -1984,9 +2034,93 @@ document.getElementById("hPlanCard").addEventListener("click", ()=>showTab("plan
 document.getElementById("hCheckCard").addEventListener("click", ()=>showTab("check"));
 document.getElementById("hBudCard").addEventListener("click", ()=>showTab("bud"));
 
+/* ---------- 메모장 ---------- */
+const memoListEl = document.getElementById("memoList");
+let noteCtx = null; // {key|null(새 메모)}
+function fmtNoteDate(ts){
+  if(!ts) return "";
+  const d = new Date(ts);
+  return (d.getMonth()+1)+"/"+d.getDate()+" "
+    + String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+function renderNotes(){
+  memoListEl.innerHTML = "";
+  const notes = Object.entries(state.notes||{}).filter(([k,v])=>v && v.x)
+    .sort((a,b)=> (b[1].ts||0)-(a[1].ts||0) || b[0].localeCompare(a[0]));
+  document.getElementById("memoMeta").textContent = notes.length ? notes.length+"개" : "";
+  if(!notes.length){
+    const em = document.createElement("div");
+    em.className = "memo-empty";
+    em.textContent = "아직 메모가 없어요.\n환전 계산, 가고 싶은 곳, 아기 일지 — 뭐든 적어두세요.";
+    memoListEl.appendChild(em);
+    return;
+  }
+  notes.forEach(([k, v])=>{
+    const lines = String(v.x).split("\n");
+    const title = lines[0], rest = lines.slice(1).join("\n").trim();
+    const card = document.createElement("div");
+    card.className = "mcard";
+    card.innerHTML = "<h4>"+esc(title)+"</h4>"
+      + (rest ? "<p>"+esc(rest)+"</p>" : "")
+      + (v.ts ? "<div class='mdate'>"+fmtNoteDate(v.ts)+(v.up?" · 수정 "+fmtNoteDate(v.up):"")+"</div>" : "");
+    card.addEventListener("click", ()=> openNote(k));
+    memoListEl.appendChild(card);
+  });
+}
+const nsheetEl = document.getElementById("nsheet"), nsX = document.getElementById("nsX");
+function openNote(key){
+  noteCtx = {key: key || null};
+  const v = key ? (state.notes||{})[key] : null;
+  document.getElementById("nsTitle").textContent = v ? "메모" : "새 메모";
+  nsX.value = v ? v.x : "";
+  document.getElementById("nsDel").classList.toggle("hidden", !v);
+  const isView = !!v;
+  document.getElementById("nsView").classList.toggle("hidden", !isView);
+  document.getElementById("nsForm").classList.toggle("hidden", isView);
+  if(isView){
+    document.getElementById("nvX").textContent = v.x;
+    document.getElementById("nvDate").textContent =
+      v.ts ? fmtNoteDate(v.ts)+(v.up ? " 작성 · "+fmtNoteDate(v.up)+" 수정" : " 작성") : "";
+  }
+  ovl.classList.add("show"); nsheetEl.classList.add("show");
+  if(!v) setTimeout(()=>nsX.focus(), 150);
+}
+function closeNoteSheet(){
+  noteCtx = null;
+  ovl.classList.remove("show"); nsheetEl.classList.remove("show");
+  renderNotes();
+}
+document.getElementById("memoAdd").addEventListener("click", ()=> openNote(null));
+document.getElementById("nvEdit").addEventListener("click", ()=>{
+  document.getElementById("nsView").classList.add("hidden");
+  document.getElementById("nsForm").classList.remove("hidden");
+  setTimeout(()=>nsX.focus(), 0);
+});
+document.getElementById("nvClose").addEventListener("click", closeNoteSheet);
+document.getElementById("nsClose").addEventListener("click", closeNoteSheet);
+document.getElementById("nsCancel").addEventListener("click", closeNoteSheet);
+document.getElementById("nsSave").addEventListener("click", ()=>{
+  const x = nsX.value.trim();
+  if(!x){ toast("내용을 적어 주세요"); nsX.focus(); return; }
+  const key = noteCtx.key || newKey();
+  const old = noteCtx.key ? (state.notes||{})[noteCtx.key] : null;
+  const v = {x:x, ts: old && old.ts ? old.ts : Date.now()};
+  if(old) v.up = Date.now();
+  noteCtx = null;
+  ovl.classList.remove("show"); nsheetEl.classList.remove("show");
+  localThenRemote("/notes/"+key, v);
+});
+document.getElementById("nsDel").addEventListener("click", ()=>{
+  const key = noteCtx.key;
+  noteCtx = null;
+  ovl.classList.remove("show"); nsheetEl.classList.remove("show");
+  if(key) localThenRemote("/notes/"+key, null);
+  toast("메모를 지웠어요");
+});
+
 function renderAll(){
   if(dragActive){ pendingRender = true; return; }
-  renderCheck(); renderPlan(); renderBudget(); renderHome();
+  renderCheck(); renderPlan(); renderBudget(); renderHome(); renderNotes();
 }
 
 /* ---------- 검색 ---------- */
@@ -2032,7 +2166,7 @@ const tabHome = document.getElementById("tabHome"),
       tabCheck = document.getElementById("tabCheck"),
       tabPlan = document.getElementById("tabPlan"),
       tabBud = document.getElementById("tabBud");
-const TAB_ORDER = ["home","plan","check","bud"];
+const TAB_ORDER = ["home","plan","check","bud","memo"];
 let curTab = "home";
 function showTab(which){
   curTab = which;
@@ -2040,12 +2174,14 @@ function showTab(which){
   tabCheck.classList.toggle("on", which==="check");
   tabPlan.classList.toggle("on", which==="plan");
   tabBud.classList.toggle("on", which==="bud");
+  document.getElementById("tabMemo").classList.toggle("on", which==="memo");
   document.querySelectorAll("#bottomNav button").forEach(b=>
     b.classList.toggle("on", b.dataset.tab===which));
   document.getElementById("viewHome").classList.toggle("hidden", which!=="home");
   document.getElementById("viewCheck").classList.toggle("hidden", which!=="check");
   document.getElementById("viewPlan").classList.toggle("hidden", which!=="plan");
   document.getElementById("viewBud").classList.toggle("hidden", which!=="bud");
+  document.getElementById("viewMemo").classList.toggle("hidden", which!=="memo");
   history.replaceState(null,"", which==="home" ? location.pathname : "#"+which);
 }
 // 좌우 스와이프로 탭 이동 (가로 스크롤 영역·입력칸·시트 위는 제외)
@@ -2069,11 +2205,13 @@ tabHome.addEventListener("click", ()=>showTab("home"));
 tabCheck.addEventListener("click", ()=>showTab("check"));
 tabPlan.addEventListener("click", ()=>showTab("plan"));
 tabBud.addEventListener("click", ()=>showTab("bud"));
+document.getElementById("tabMemo").addEventListener("click", ()=>showTab("memo"));
 document.querySelectorAll("#bottomNav button").forEach(b=>
   b.addEventListener("click", ()=>showTab(b.dataset.tab)));
 if(location.hash==="#check") showTab("check");
 else if(location.hash==="#plan" || location.hash==="#map") showTab("plan");
 else if(location.hash==="#bud") showTab("bud");
+else if(location.hash==="#memo") showTab("memo");
 else showTab("home");
 
 /* ---------- 기타 ---------- */
