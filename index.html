@@ -190,7 +190,11 @@ li.item.on .txt{color:var(--done); text-decoration:line-through}
   touch-action:none; font-family:inherit; user-select:none;
 }
 .grip:active{color:var(--teal)}
-li.item.dragging{opacity:.55; box-shadow:0 6px 18px rgba(0,0,0,.18)}
+li.item.dragging{opacity:.9; box-shadow:0 10px 26px rgba(0,0,0,.28); background:var(--card); border-radius:10px; border-bottom:none}
+li.item.ph{
+  background:var(--scsoft); border:2px dashed var(--sc); border-radius:10px;
+  margin:2px 8px; padding:0; list-style:none;
+}
 .item-edit{
   display:flex; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line);
   align-items:center; background:var(--scsoft);
@@ -467,6 +471,8 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <label>장소 (지도 탭에 표시)</label>
     <div class="loc-sel hidden" id="shLocSel">
       <span id="shLocName"></span>
+      <a id="shLocG" href="#" target="_blank" rel="noopener"
+         style="flex:none; font-size:12px; font-weight:800; color:var(--teal)">구글맵↗</a>
       <button class="del" id="shLocClear" aria-label="장소 지우기">×</button>
     </div>
     <div class="loc-search">
@@ -688,6 +694,7 @@ function renderCheck(){
       if(ckEd && ckEd.id === r.id){
         const li = document.createElement("li");
         li.className = "item-edit";
+        li.dataset.id = r.id;
         const inp = document.createElement("input");
         inp.value = ckEd.draft;
         inp.addEventListener("input", ()=>{ ckEd.draft = inp.value; });
@@ -721,21 +728,40 @@ function renderCheck(){
         ()=>{ ckEd = {id:r.id, draft:r.text, focusPending:true}; renderCheck(); },
         !query);
       li.dataset.id = r.id;
+      // 드래그 중에는 행을 자리에서 빼지 않고(캡처가 끊김) 자리 표시자만 옮긴다
       const grip = li.querySelector(".grip");
+      let rc = null, ph = null;
       if(grip) bindDrag(grip, {
-        start(){ li.classList.add("dragging"); },
-        move(x, y){
+        start(){
+          rc = li.getBoundingClientRect();
+          ph = document.createElement("li");
+          ph.className = "item ph";
+          ph.style.height = rc.height + "px";
+          ul.insertBefore(ph, li);
+          li.classList.add("dragging");
+          li.style.position = "fixed"; li.style.zIndex = "80";
+          li.style.left = rc.left+"px"; li.style.top = rc.top+"px"; li.style.width = rc.width+"px";
+        },
+        move(x, y, dx, dy){
+          li.style.left = (rc.left + dx) + "px";
+          li.style.top = (rc.top + dy) + "px";
+          const prevPE = li.style.pointerEvents;
+          li.style.pointerEvents = "none";
           const t = document.elementFromPoint(x, y);
-          const over = t && t.closest ? t.closest("li.item") : null;
+          li.style.pointerEvents = prevPE;
+          const over = t && t.closest ? t.closest("li.item:not(.ph)") : null;
           if(!over || over === li || over.parentElement !== ul) return;
-          const rc = over.getBoundingClientRect();
-          ul.insertBefore(li, y < rc.top + rc.height/2 ? over : over.nextSibling);
+          const r2 = over.getBoundingClientRect();
+          ul.insertBefore(ph, y < r2.top + r2.height/2 ? over : over.nextSibling);
         },
         end(commit){
           li.classList.remove("dragging");
+          li.style.position = li.style.zIndex = li.style.left = li.style.top = li.style.width = "";
+          if(commit && ph.parentElement) ul.insertBefore(li, ph);
+          if(ph.parentElement) ph.remove();
           if(!commit){ renderCheck(); return; }
           const ordObj = {};
-          ul.querySelectorAll("li.item").forEach((el, i)=>{ ordObj[el.dataset.id] = i; });
+          ul.querySelectorAll("li[data-id]").forEach((el, i)=>{ ordObj[el.dataset.id] = i; });
           localThenRemote("/ord/"+sKey, ordObj);
         }
       });
@@ -1142,7 +1168,10 @@ function closeSheet(){
 function refreshLocSel(){
   const has = sheetCtx && typeof sheetCtx.la === "number";
   shLocSel.classList.toggle("hidden", !has);
-  if(has) shLocName.textContent = "📍 " + (sheetCtx.ln || (sheetCtx.la.toFixed(4)+", "+sheetCtx.lo.toFixed(4)));
+  if(has){
+    shLocName.textContent = "📍 " + (sheetCtx.ln || (sheetCtx.la.toFixed(4)+", "+sheetCtx.lo.toFixed(4)));
+    document.getElementById("shLocG").href = gmapUrl({la:sheetCtx.la, lo:sheetCtx.lo, ln:sheetCtx.ln});
+  }
 }
 function pickLoc(la, lo, ln){
   sheetCtx.la = la; sheetCtx.lo = lo; sheetCtx.ln = ln;
@@ -1214,6 +1243,16 @@ document.getElementById("shClose").addEventListener("click", closeSheet);
 ovl.addEventListener("click", closeSheet);
 
 /* ---------- 지도 (Leaflet + OpenStreetMap) ---------- */
+// 구글맵은 무료 임베드가 안 돼서(유료 API 키 필요) 표시용 지도는 OSM,
+// 실제 이동할 땐 구글맵 앱으로 넘겨준다 (안드로이드에서 앱으로 바로 열림)
+function gmapUrl(en){
+  return "https://www.google.com/maps/search/?api=1&query="
+    + (en.ln ? encodeURIComponent(en.ln+" Nha Trang") : en.la+","+en.lo);
+}
+function gmapDirUrl(en){
+  return "https://www.google.com/maps/dir/?api=1&destination="+en.la+","+en.lo
+    + "&travelmode=driving";
+}
 let map = null, mapLayer = null, mapDay = -1;
 const mapChipsEl = document.getElementById("mapChips");
 function ensureMap(){
@@ -1259,7 +1298,9 @@ function renderMap(){
       })}).addTo(mapLayer);
       m.bindPopup("<b style='color:"+DAYHEX[di]+"'>DAY "+(di+1)+"</b> "
         + (en.t ? en.t + (en.e?"–"+en.e:"") : "시간 미정") + "<br><b>"+esc(en.x)+"</b>"
-        + (en.ln ? "<br>📍 "+esc(en.ln) : ""));
+        + (en.ln ? "<br>📍 "+esc(en.ln) : "")
+        + "<br><a href='"+gmapUrl(en)+"' target='_blank' rel='noopener'>구글맵 열기</a>"
+        + " · <a href='"+gmapDirUrl(en)+"' target='_blank' rel='noopener'>길찾기</a>");
       pts.push([en.la, en.lo]);
       bounds.push([en.la, en.lo]);
     });
