@@ -56,14 +56,15 @@ body{
 }
 .wrap{max-width:1160px; margin:0 auto; padding:0 16px 80px}
 @media (max-width:719px){
-  .wrap{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .wrap{padding-bottom:calc(96px + max(14px, env(safe-area-inset-bottom)))}
 }
 
 /* ---------- 하단 내비 (모바일 전용) ---------- */
 .bottomnav{
   position:fixed; left:0; right:0; bottom:0; z-index:50;
   display:flex; background:var(--card); border-top:1px solid var(--line);
-  padding:4px 0 calc(4px + env(safe-area-inset-bottom));
+  /* 안드로이드 제스처 바(검은 알약)가 버튼을 가리지 않게 최소 14px 여유 확보 */
+  padding:4px 0 calc(4px + max(14px, env(safe-area-inset-bottom)));
   box-shadow:0 -2px 12px rgba(0,0,0,.08);
 }
 .bottomnav button{
@@ -77,35 +78,42 @@ body{
 .bottomnav button.on span{color:var(--teal)}
 @media (min-width:720px){ .bottomnav{display:none} }
 
-/* ---------- 히어로 (모바일=슬림 바, 데스크톱=큰 카드) ---------- */
-.hero{
-  margin:10px 0 0; border-radius:14px; padding:9px 14px 10px;
+/* ---------- 홈 화면 ---------- */
+.hhero{
+  margin:12px 0 0; border-radius:18px; padding:18px 18px 16px;
   background:linear-gradient(130deg, var(--teal) 0%, var(--aqua) 52%, var(--sun) 120%);
   color:var(--hero-ink); position:relative; overflow:hidden;
 }
-.hero::after{content:none}
-.hero .eyebrow{display:none}
-.hero h1{font-size:16px; font-weight:900; letter-spacing:-.02em; margin:0; line-height:1.35}
-.hero .dates{font-size:11px; font-weight:600; opacity:.95}
+.hhero::after{
+  content:"🌴"; position:absolute; right:10px; bottom:-16px; font-size:76px;
+  opacity:.2; transform:rotate(-8deg);
+}
+.hhero .heyebrow{font-size:11px; letter-spacing:.14em; font-weight:800; opacity:.9}
+.hhero .hdday{font-size:34px; font-weight:900; letter-spacing:-.02em; line-height:1.15; margin:2px 0}
+.hhero .hsub{font-size:12.5px; font-weight:600; opacity:.95}
 .live{
-  position:absolute; top:50%; transform:translateY(-50%); right:10px;
+  position:absolute; top:14px; right:14px;
   display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800;
   background:rgba(0,0,0,.18); border-radius:99px; padding:4px 9px; color:#fff;
 }
 .live .dot{width:7px; height:7px; border-radius:50%; background:var(--sun)}
 .live.on .dot{background:#7CFFC2}
-@media (min-width:720px){
-  .hero{margin:14px 0 0; border-radius:20px; padding:22px 22px 20px}
-  .hero::after{
-    content:"🌴"; position:absolute; right:14px; bottom:-14px; font-size:88px;
-    opacity:.22; transform:rotate(-8deg);
-  }
-  .hero .eyebrow{display:block; font-size:12px; letter-spacing:.16em; font-weight:800; opacity:.9}
-  .hero h1{font-size:26px; margin:4px 0 2px; text-wrap:balance}
-  .hero .dates{font-size:14px}
-  .live{top:16px; right:16px; transform:none; font-size:12px; padding:5px 11px; gap:6px}
-  .live .dot{width:8px; height:8px}
+.hcards{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+@media (min-width:720px){ .hcards{display:grid; grid-template-columns:repeat(3,1fr); align-items:stretch} }
+.hcard{
+  background:var(--card); border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow); padding:13px 16px 14px; cursor:pointer;
 }
+.hcard:active{background:var(--s0soft)}
+.hcard h3{
+  font-size:12.5px; font-weight:800; color:var(--sub);
+  display:flex; align-items:center; gap:6px;
+}
+.hcard h3::after{content:"›"; margin-left:auto; font-size:16px; opacity:.5}
+.hcard .hbig{font-size:17px; font-weight:900; margin-top:5px; line-height:1.35}
+.hcard .hline{font-size:13px; margin-top:4px; line-height:1.45}
+.hcard .hmut{color:var(--sub); font-size:12px; margin-top:3px}
+.hcard .bar{margin-top:8px}
 
 /* ---------- 탭 + 진행률 (sticky) ---------- */
 .sticky{
@@ -469,27 +477,36 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
 </head>
 <body>
 <div class="wrap">
-  <div class="hero">
-    <div class="eyebrow">NHA TRANG · 가족여행</div>
-    <h1>나트랑 여행 🌊</h1>
-    <div class="dates">9/10 (목) 출발 ✈️ → 9/14 (월) 귀국 🛬 · 4박 5일</div>
-    <div class="live" id="live"><span class="dot"></span><span id="liveTxt">연결 중…</span></div>
-  </div>
-
   <div class="sticky" id="stickyBar">
     <div class="tabs">
-      <button class="tab on" id="tabCheck">🧳 준비물</button>
+      <button class="tab on" id="tabHome">🏠 홈</button>
+      <button class="tab" id="tabCheck">🧳 준비물</button>
       <button class="tab" id="tabPlan">🗓️ 일정</button>
       <button class="tab" id="tabBud">💰 예산</button>
     </div>
-    <div class="progress-row" id="progressRow">
+    <div class="progress-row hidden" id="progressRow">
       <div class="bar"><i id="barFill"></i></div>
       <span class="count" id="totalCount">0 / 0</span>
     </div>
   </div>
 
+  <!-- ===== 홈 ===== -->
+  <div id="viewHome">
+    <div class="hhero">
+      <div class="heyebrow">NHA TRANG · 가족여행 🌊</div>
+      <div class="hdday" id="hDday">D-?</div>
+      <div class="hsub" id="hSub">9/10 (목) 출발 ✈️ → 9/14 (월) 귀국 🛬 · 4박 5일</div>
+      <div class="live" id="live"><span class="dot"></span><span id="liveTxt">연결 중…</span></div>
+    </div>
+    <div class="hcards">
+      <div class="hcard" id="hPlanCard"></div>
+      <div class="hcard" id="hCheckCard"></div>
+      <div class="hcard" id="hBudCard"></div>
+    </div>
+  </div>
+
   <!-- ===== 준비물 탭 ===== -->
-  <div id="viewCheck">
+  <div id="viewCheck" class="hidden">
     <div class="controls">
       <div class="search-row">
         <span class="icon">🔍</span>
@@ -530,7 +547,8 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
 
 <!-- ===== 하단 내비 (모바일) ===== -->
 <nav class="bottomnav" id="bottomNav" aria-label="메뉴">
-  <button data-tab="check" class="on">🧳<span>준비물</span></button>
+  <button data-tab="home" class="on">🏠<span>홈</span></button>
+  <button data-tab="check">🧳<span>준비물</span></button>
   <button data-tab="plan">🗓️<span>일정</span></button>
   <button data-tab="bud">💰<span>예산</span></button>
 </nav>
@@ -972,7 +990,7 @@ function makeItem(text, on, onToggle, onDel, onEdit, movable){
   li.addEventListener("keydown", e=>{ if(e.target!==li) return; if(e.key===" "||e.key==="Enter"){ e.preventDefault(); onToggle(); }});
   return li;
 }
-function updateTotal(){
+function computeTotals(){
   let total=0, done=0;
   DATA.forEach((sec,si)=>{
     sec.items.forEach((_,ii)=>{
@@ -982,8 +1000,12 @@ function updateTotal(){
     });
   });
   Object.values(state.custom).forEach(c=>{ if(!c) return; total++; if(c.c) done++; });
-  document.getElementById("totalCount").textContent = done+" / "+total;
-  document.getElementById("barFill").style.width = total?Math.round(done/total*100)+"%":"0%";
+  return {total:total, done:done};
+}
+function updateTotal(){
+  const t = computeTotals();
+  document.getElementById("totalCount").textContent = t.done+" / "+t.total;
+  document.getElementById("barFill").style.width = t.total?Math.round(t.done/t.total*100)+"%":"0%";
 }
 
 /* ---------- 일정: 타임라인 캘린더 ---------- */
@@ -1238,10 +1260,11 @@ function renderPlan(){
   card.appendChild(tip);
   planEl.appendChild(card);
 }
-// 현재 시각 줄 갱신 (1분마다)
+// 현재 시각 줄·홈 카드 갱신 (1분마다)
 setInterval(()=>{
   if(dragActive || sheetCtx) return;
   if(!document.getElementById("viewPlan").classList.contains("hidden") && todayDi() === planDay) renderPlan();
+  renderHome();
 }, 60000);
 
 /* ---------- 일정 편집 시트 ---------- */
@@ -1489,9 +1512,79 @@ function renderBudget(){
   document.getElementById("budTotal").textContent = fmtWon(grand);
 }
 
+/* ---------- 홈 ---------- */
+function tripStatus(){
+  const n = new Date();
+  const today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const d = Math.round((TRIP_START - today) / 86400000);
+  if(d > 0) return {phase:"before", dday:d};
+  if(-d < DAYS.length) return {phase:"during", di:-d};
+  return {phase:"after"};
+}
+function budgetGrand(){
+  let g = 0;
+  ["g","d0","d1","d2","d3","d4"].forEach(bk=>{
+    Object.values((state.budget||{})[bk]||{}).forEach(v=>{ if(v && typeof v.w==="number") g += v.w; });
+  });
+  DAYS.forEach((_, di)=>{
+    Object.values((state.plan||{})["d"+di]||{}).forEach(en=>{ if(en && typeof en.w==="number") g += en.w; });
+  });
+  return g;
+}
+function planLine(en){
+  return (en.t ? "<b>"+en.t+(en.e?"–"+en.e:"")+"</b> " : "") + esc(en.x);
+}
+function renderHome(){
+  const st = tripStatus();
+  const dd = document.getElementById("hDday");
+  if(st.phase === "before") dd.textContent = "D-" + st.dday;
+  else if(st.phase === "during") dd.textContent = "DAY " + (st.di+1) + " · 여행 중 🌊";
+  else dd.textContent = "여행 완료 🌊";
+
+  // 일정 카드: 여행 전=출발 편, 여행 중=지금/다음 일정
+  const pc = document.getElementById("hPlanCard");
+  let ph = "<h3>🗓️ 일정</h3>";
+  if(st.phase === "during"){
+    const ds = dayEntries(st.di);
+    const n = new Date();
+    const nowM = n.getHours()*60 + n.getMinutes();
+    const cur = ds.timed.filter(([k,en])=> minsOf(en.t) <= nowM && en.e && minsOf(en.e) > nowM);
+    const next = ds.timed.filter(([k,en])=> minsOf(en.t) > nowM).slice(0, 2);
+    if(cur.length) ph += "<div class='hline'>지금 · " + planLine(cur[0][1]) + "</div>";
+    if(next.length) next.forEach(([k,en])=>{ ph += "<div class='hline'>다음 · " + planLine(en) + "</div>"; });
+    if(!cur.length && !next.length) ph += "<div class='hmut'>오늘 남은 일정이 없어요</div>";
+  }else if(st.phase === "before"){
+    const d0 = dayEntries(0);
+    if(d0.timed.length) ph += "<div class='hbig'>" + planLine(d0.timed[0][1]) + "</div>";
+    const cnt = DAYS.reduce((a,_,di)=>{ const ds=dayEntries(di); return a + ds.timed.length + ds.untimed.length; }, 0);
+    ph += "<div class='hmut'>지금까지 잡아둔 일정 " + cnt + "개 — 눌러서 더 채워보세요</div>";
+  }else{
+    ph += "<div class='hmut'>다음 여행 때 또 써요!</div>";
+  }
+  pc.innerHTML = ph;
+
+  // 준비물 카드
+  const t = computeTotals();
+  const pct = t.total ? Math.round(t.done/t.total*100) : 0;
+  document.getElementById("hCheckCard").innerHTML = "<h3>🧳 준비물</h3>"
+    + "<div class='hbig'>" + t.done + " / " + t.total + " 챙겼어요</div>"
+    + (t.total - t.done > 0 ? "<div class='hmut'>남은 준비물 " + (t.total - t.done) + "개</div>"
+        : "<div class='hmut'>전부 챙겼어요! 🎉</div>")
+    + "<div class='bar'><i style='width:" + pct + "%'></i></div>";
+
+  // 예산 카드
+  const g = budgetGrand();
+  document.getElementById("hBudCard").innerHTML = "<h3>💰 예산</h3>"
+    + (g > 0 ? "<div class='hbig'>" + fmtWon(g) + "</div><div class='hmut'>지금까지 책정한 예산 합계</div>"
+             : "<div class='hmut'>아직 예산을 안 잡았어요 — 눌러서 짜보세요</div>");
+}
+document.getElementById("hPlanCard").addEventListener("click", ()=>showTab("plan"));
+document.getElementById("hCheckCard").addEventListener("click", ()=>showTab("check"));
+document.getElementById("hBudCard").addEventListener("click", ()=>showTab("bud"));
+
 function renderAll(){
   if(dragActive){ pendingRender = true; return; }
-  renderCheck(); renderPlan(); renderBudget();
+  renderCheck(); renderPlan(); renderBudget(); renderHome();
 }
 
 /* ---------- 검색 ---------- */
@@ -1533,30 +1626,36 @@ document.getElementById("gaddBtn").addEventListener("click", gadd);
 gaddInput.addEventListener("keydown", e=>{ if(e.key==="Enter") gadd(); });
 
 /* ---------- 탭 ---------- */
-const tabCheck = document.getElementById("tabCheck"),
+const tabHome = document.getElementById("tabHome"),
+      tabCheck = document.getElementById("tabCheck"),
       tabPlan = document.getElementById("tabPlan"),
       tabBud = document.getElementById("tabBud");
 function showTab(which){
+  tabHome.classList.toggle("on", which==="home");
   tabCheck.classList.toggle("on", which==="check");
   tabPlan.classList.toggle("on", which==="plan");
   tabBud.classList.toggle("on", which==="bud");
   document.querySelectorAll("#bottomNav button").forEach(b=>
     b.classList.toggle("on", b.dataset.tab===which));
+  document.getElementById("viewHome").classList.toggle("hidden", which!=="home");
   document.getElementById("viewCheck").classList.toggle("hidden", which!=="check");
   document.getElementById("viewPlan").classList.toggle("hidden", which!=="plan");
   document.getElementById("viewBud").classList.toggle("hidden", which!=="bud");
   document.getElementById("progressRow").classList.toggle("hidden", which!=="check");
   // 모바일: 준비물 밖에서는 상단 진행률 바 줄도 통째로 숨김
   document.getElementById("stickyBar").classList.toggle("mobile-hide", which!=="check");
-  history.replaceState(null,"", which==="check" ? location.pathname : "#"+which);
+  history.replaceState(null,"", which==="home" ? location.pathname : "#"+which);
 }
+tabHome.addEventListener("click", ()=>showTab("home"));
 tabCheck.addEventListener("click", ()=>showTab("check"));
 tabPlan.addEventListener("click", ()=>showTab("plan"));
 tabBud.addEventListener("click", ()=>showTab("bud"));
 document.querySelectorAll("#bottomNav button").forEach(b=>
   b.addEventListener("click", ()=>showTab(b.dataset.tab)));
-if(location.hash==="#plan" || location.hash==="#map") showTab("plan");
+if(location.hash==="#check") showTab("check");
+else if(location.hash==="#plan" || location.hash==="#map") showTab("plan");
 else if(location.hash==="#bud") showTab("bud");
+else showTab("home");
 
 /* ---------- 기타 ---------- */
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
