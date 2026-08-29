@@ -151,11 +151,11 @@ body{
   display:flex; align-items:center; gap:9px;
 }
 .hcard h3::after{content:"›"; margin-left:auto; font-size:17px; opacity:.4; color:var(--sub)}
-.hcard h3 .ic{
+.ic{
   width:30px; height:30px; border-radius:10px; flex:none;
   display:grid; place-items:center;
 }
-.hcard h3 .ic svg{width:17px; height:17px}
+.ic svg{width:17px; height:17px}
 .hcard .hbig{font-size:17px; font-weight:900; margin-top:5px; line-height:1.35}
 .hcard .hline{font-size:13px; margin-top:4px; line-height:1.45}
 .hcard .hmut{color:var(--sub); font-size:12px; margin-top:3px}
@@ -178,8 +178,11 @@ body{
 }
 
 /* ---------- 화면 헤더 (탭별 제목 + 요약) ---------- */
-.shead{display:flex; align-items:baseline; gap:8px; margin:16px 2px 10px}
-.shead h2{font-size:20px; font-weight:900; letter-spacing:-.01em; flex:1}
+.shead{display:flex; align-items:center; gap:8px; margin:16px 2px 10px}
+.shead h2{font-size:20px; font-weight:900; letter-spacing:-.01em; flex:1;
+  display:flex; align-items:center; gap:10px}
+.shead .ic{width:34px; height:34px; border-radius:11px}
+.shead .ic svg{width:19px; height:19px}
 .shead .smeta{font-size:13px; font-weight:800; color:var(--sub); font-variant-numeric:tabular-nums; text-align:right}
 @media (min-width:720px){ .shead{margin-top:4px} }
 .check-progress{display:flex; align-items:center; gap:10px; margin:0 2px 14px}
@@ -187,7 +190,9 @@ body{
   flex:1; max-width:220px; border:1.5px solid var(--line); background:var(--card);
   color:var(--sub); border-radius:12px; padding:9px 0; font-size:14px; font-weight:800;
   font-family:inherit; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:6px;
 }
+.tab svg{width:16px; height:16px}
 .tab.on{
   background:linear-gradient(135deg, var(--teal), var(--aqua));
   border-color:transparent; color:#fff;
@@ -203,7 +208,11 @@ body{
 /* ---------- 검색 + 전체 추가 ---------- */
 .controls{display:flex; flex-direction:column; gap:8px; margin-bottom:16px}
 .search-row{position:relative}
-.search-row .icon{position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none}
+.search-row .icon{
+  position:absolute; left:13px; top:50%; transform:translateY(-50%);
+  pointer-events:none; color:var(--sub); display:flex;
+}
+.search-row .icon svg{width:16px; height:16px}
 #searchInput{
   width:100%; border:1.5px solid var(--line); border-radius:12px;
   padding:11px 38px 11px 38px; font-size:15px; font-family:inherit;
@@ -295,9 +304,11 @@ li.item.on .txt{color:var(--done); text-decoration:line-through}
 }
 .del:active{color:var(--coral)}
 .pencil-btn{
-  flex:none; border:none; background:none; font-size:13px; padding:6px;
-  cursor:pointer; line-height:1; border-radius:6px; opacity:.6; font-family:inherit;
+  flex:none; border:none; background:none; padding:6px; color:var(--sub);
+  cursor:pointer; line-height:0; border-radius:6px; font-family:inherit;
 }
+.pencil-btn svg{width:14px; height:14px}
+.pencil-btn:active{color:var(--teal)}
 .grip{
   flex:none; border:none; background:none; color:var(--sub); font-size:16px;
   padding:6px 7px; cursor:grab; line-height:1; border-radius:6px;
@@ -633,11 +644,11 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
 <div class="wrap">
   <div class="sticky" id="stickyBar">
     <div class="tabs">
-      <button class="tab on" id="tabHome">🏠 홈</button>
-      <button class="tab" id="tabPlan">🗓️ 일정</button>
-      <button class="tab" id="tabCheck">🧳 준비물</button>
-      <button class="tab" id="tabBud">💰 예산</button>
-      <button class="tab" id="tabMemo">📝 메모</button>
+      <button class="tab on" id="tabHome"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.8 12 3l9 7.8"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.8 21v-5.4h4.4V21"/></svg>홈</button>
+      <button class="tab" id="tabPlan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 3v4M16 3v4"/></svg>일정</button>
+      <button class="tab" id="tabCheck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V5.5a3 3 0 0 1 6 0V7"/><rect x="4.5" y="7" width="15" height="14" rx="3"/><path d="m9.2 13.6 2 2 3.8-4"/></svg>준비물</button>
+      <button class="tab" id="tabBud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><circle cx="16.6" cy="14.8" r="1.15" fill="currentColor" stroke="none"/></svg>예산</button>
+      <button class="tab" id="tabMemo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9.5 12.5h5M9.5 16h5"/></svg>메모</button>
     </div>
   </div>
 
@@ -664,11 +675,11 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
 
   <!-- ===== 준비물 탭 ===== -->
   <div id="viewCheck" class="hidden">
-    <div class="shead"><h2>🧳 준비물</h2><span class="smeta" id="totalCount">0 / 0</span></div>
+    <div class="shead"><h2><span class="ic" style="background:var(--s0soft); color:var(--s0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V5.5a3 3 0 0 1 6 0V7"/><rect x="4.5" y="7" width="15" height="14" rx="3"/><path d="m9.2 13.6 2 2 3.8-4"/></svg></span>준비물</h2><span class="smeta" id="totalCount">0 / 0</span></div>
     <div class="check-progress"><div class="bar"><i id="barFill"></i></div></div>
     <div class="controls">
       <div class="search-row">
-        <span class="icon">🔍</span>
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></span>
         <input id="searchInput" placeholder="전체 검색 — 예: 기저귀, 선크림" autocomplete="off">
         <button id="searchClear" aria-label="검색 지우기">×</button>
       </div>
@@ -688,21 +699,21 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
 
   <!-- ===== 일정 탭 ===== -->
   <div id="viewPlan" class="hidden">
-    <div class="shead"><h2>🗓️ 일정</h2><span class="smeta" id="planMeta"></span></div>
+    <div class="shead"><h2><span class="ic" style="background:var(--s2soft); color:var(--s2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 3v4M16 3v4"/></svg></span>일정</h2><span class="smeta" id="planMeta"></span></div>
     <div class="day-chips" id="dayChips"></div>
     <div id="planGrid"></div>
   </div>
 
   <!-- ===== 메모장 탭 ===== -->
   <div id="viewMemo" class="hidden">
-    <div class="shead"><h2>📝 메모장</h2><span class="smeta" id="memoMeta"></span></div>
+    <div class="shead"><h2><span class="ic" style="background:var(--s4soft); color:var(--s4)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9.5 12.5h5M9.5 16h5"/></svg></span>메모장</h2><span class="smeta" id="memoMeta"></span></div>
     <button class="btn" id="memoAdd" style="width:100%; margin-bottom:12px; padding:12px 0">+ 새 메모</button>
     <div class="memo-list" id="memoList"></div>
   </div>
 
   <!-- ===== 예산 탭 ===== -->
   <div id="viewBud" class="hidden">
-    <div class="shead"><h2>💰 예산</h2><span class="smeta" id="budTotal"></span></div>
+    <div class="shead"><h2><span class="ic" style="background:var(--s3soft); color:var(--s3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><circle cx="16.6" cy="14.8" r="1.15" fill="currentColor" stroke="none"/></svg></span>예산</h2><span class="smeta" id="budTotal"></span></div>
     <div class="wallet" id="walletCard"></div>
     <div class="bgrid" id="budGrid"></div>
     <div class="note">
@@ -748,7 +759,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="v-line" id="svM"></div>
     <div class="v-line" id="svL"></div>
     <div class="sheet-actions">
-      <button class="btn" id="svEdit">✏️ 수정</button>
+      <button class="btn" id="svEdit">수정</button>
       <button class="btn ghost" id="svClose">닫기</button>
     </div>
   </div>
@@ -822,7 +833,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="v-line" id="nvDate" style="color:var(--sub); font-size:12px"></div>
     <div id="nvX"></div>
     <div class="sheet-actions">
-      <button class="btn" id="nvEdit">✏️ 수정</button>
+      <button class="btn" id="nvEdit">수정</button>
       <button class="btn ghost" id="nvClose">닫기</button>
     </div>
   </div>
@@ -1272,7 +1283,7 @@ function makeItem(text, on, onToggle, onDel, onEdit, movable){
   li.innerHTML = "<span class='box'><svg viewBox='0 0 16 16'><polyline points='2.5,8.5 6.5,12.5 13.5,4'/></svg></span><span class='txt'>"+esc(text)+"</span>";
   if(onEdit){
     const p = document.createElement("button");
-    p.className = "pencil-btn"; p.textContent = "✏️"; p.setAttribute("aria-label","수정");
+    p.className = "pencil-btn"; p.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.12 2.12 0 0 1 3 3L8 19l-4 1z"/><path d="m14.5 6.5 3 3"/></svg>'; p.setAttribute("aria-label","수정");
     p.addEventListener("click", e=>{ e.stopPropagation(); onEdit(); });
     li.appendChild(p);
   }
