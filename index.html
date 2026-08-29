@@ -114,6 +114,11 @@ body{
 .hcard .hline{font-size:13px; margin-top:4px; line-height:1.45}
 .hcard .hmut{color:var(--sub); font-size:12px; margin-top:3px}
 .hcard .bar{margin-top:8px}
+.hcard.static{cursor:default}
+.hcard.static:active{background:var(--card)}
+.hcard.static h3::after{content:""}
+.hcard a{color:var(--teal); font-weight:800; text-decoration:none; margin-right:12px}
+.hcard .hline b{font-variant-numeric:tabular-nums}
 
 /* ---------- 탭 + 진행률 (sticky) ---------- */
 .sticky{
@@ -537,6 +542,9 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
       <div class="hcard" id="hPlanCard"></div>
       <div class="hcard" id="hCheckCard"></div>
       <div class="hcard" id="hBudCard"></div>
+      <div class="hcard static" id="hFlightCard"></div>
+      <div class="hcard static" id="hHotelCard"></div>
+      <div class="hcard static" id="hRateCard"></div>
     </div>
   </div>
 
@@ -826,6 +834,22 @@ function bindDrag(handle, cb){
 const secEl = document.getElementById("sections");
 function matches(t){ return !query || t.toLowerCase().includes(query); }
 let ckEd = null; // 준비물 인라인 수정 상태 {id, draft, custom, focusPending}
+// 항목을 다른 대분류로 이동. 기본 목록 항목은 직접 추가 항목으로 변환해서 옮긴다.
+function moveItemSection(r, toSec, text){
+  const t = text !== undefined ? text : r.text;
+  if(r.base){
+    const nk = newKey();
+    const checked = !!state.chk[r.id];
+    localThenRemote("/custom/"+nk, {s:toSec, t:t, c:checked});
+    localThenRemote("/removed/"+r.id, true);
+    if(state.edits[r.id]) localThenRemote("/edits/"+r.id, null);
+    if(checked) localThenRemote("/chk/"+r.id, null);
+    return nk;
+  }
+  localThenRemote("/custom/"+r.id, {s:toSec, t:t, c:!!(r.c && r.c.c)});
+  return r.id;
+}
+function parseSecId(raw){ return /^\d+$/.test(raw) ? +raw : raw; }
 // 기본 5개 + 직접 추가한 대분류를 합쳐 한 목록으로
 function sectionList(){
   const base = DATA.map((sec,si)=>({id:si, name:sec.name, emoji:sec.emoji, color:si, items:sec.items, custom:false}));
@@ -853,6 +877,7 @@ function renderCheck(){
     head.className = "grp-head";
     const ul = document.createElement("ul");
     ul.className = "items";
+    ul.dataset.sec = String(sec.id);
 
     // 기본 + 직접 추가 항목을 한 목록으로 합쳐 저장된 순서(ord)대로 정렬
     const sKey = "s"+sec.id, sord = state.ord[sKey]||{};
@@ -872,7 +897,7 @@ function renderCheck(){
       const on = r.base ? !!state.chk[r.id] : !!r.c.c;
       if(on) done++;
 
-      // 인라인 수정 모드
+      // 인라인 수정 모드 (내용 + 대분류 이동)
       if(ckEd && ckEd.id === r.id){
         const li = document.createElement("li");
         li.className = "item-edit";
@@ -880,10 +905,25 @@ function renderCheck(){
         const inp = document.createElement("input");
         inp.value = ckEd.draft;
         inp.addEventListener("input", ()=>{ ckEd.draft = inp.value; });
+        const secSel = document.createElement("select");
+        secSel.className = "unit-sel";
+        secSel.setAttribute("aria-label","대분류 이동");
+        sectionList().forEach(s2=>{
+          const o = document.createElement("option");
+          o.value = String(s2.id); o.textContent = s2.emoji+" "+s2.name;
+          secSel.appendChild(o);
+        });
+        secSel.value = String(sec.id);
         const doSave = ()=>{
           const t = ckEd.draft.trim();
           if(!t) return;
-          const ed = ckEd; ckEd = null;
+          const toRaw = secSel.value;
+          ckEd = null;
+          if(toRaw !== String(sec.id)){
+            moveItemSection(r, parseSecId(toRaw), t);
+            toast("옮겼어요");
+            return;
+          }
           if(r.base) localThenRemote("/edits/"+r.id, t===r.orig ? null : t);
           else localThenRemote("/custom/"+r.id+"/t", t);
         };
@@ -895,7 +935,7 @@ function renderCheck(){
         const cc = document.createElement("button");
         cc.className = "btn small ghost"; cc.textContent = "취소";
         cc.addEventListener("click", ()=>{ ckEd = null; renderCheck(); });
-        li.appendChild(inp); li.appendChild(sv); li.appendChild(cc);
+        li.appendChild(inp); li.appendChild(secSel); li.appendChild(sv); li.appendChild(cc);
         if(ckEd.focusPending){ ckEd.focusPending = false; setTimeout(()=>inp.focus(), 0); }
         ul.appendChild(li);
         visibleCount++;
@@ -931,20 +971,46 @@ function renderCheck(){
           li.style.pointerEvents = "none";
           const t = document.elementFromPoint(x, y);
           li.style.pointerEvents = prevPE;
-          const over = t && t.closest ? t.closest("li.item:not(.ph)") : null;
-          if(!over || over === li || over.parentElement !== ul) return;
-          const r2 = over.getBoundingClientRect();
-          ul.insertBefore(ph, y < r2.top + r2.height/2 ? over : over.nextSibling);
+          if(!t || !t.closest) return;
+          // 같은/다른 대분류의 항목 위 → 그 앞뒤로 자리 표시자
+          const over = t.closest("li.item:not(.ph)");
+          if(over && over !== li){
+            const r2 = over.getBoundingClientRect();
+            over.parentElement.insertBefore(ph, y < r2.top + r2.height/2 ? over : over.nextSibling);
+            return;
+          }
+          // 다른 대분류 카드 아무 데나 → 그 목록 끝으로
+          const grp = t.closest("section.grp");
+          if(grp){
+            const u2 = grp.querySelector("ul.items");
+            if(u2 && ph.parentElement !== u2) u2.appendChild(ph);
+          }
         },
         end(commit){
           li.classList.remove("dragging");
           li.style.position = li.style.zIndex = li.style.left = li.style.top = li.style.width = "";
-          if(commit && ph.parentElement) ul.insertBefore(li, ph);
+          const targetUl = ph.parentElement;
+          const valid = commit && targetUl && targetUl.classList.contains("items");
+          if(valid) targetUl.insertBefore(li, ph);
           if(ph.parentElement) ph.remove();
-          if(!commit){ renderCheck(); return; }
-          const ordObj = {};
-          ul.querySelectorAll("li[data-id]").forEach((el, i)=>{ ordObj[el.dataset.id] = i; });
-          localThenRemote("/ord/"+sKey, ordObj);
+          if(!valid){ renderCheck(); return; }
+          const toRaw = targetUl.dataset.sec;
+          const cross = toRaw !== String(sec.id);
+          // 저장이 재렌더를 부르므로 순서 목록부터 확보
+          const tIds = [...targetUl.querySelectorAll("li[data-id]")].map(el=> el === li ? null : el.dataset.id);
+          const tPos = [...targetUl.querySelectorAll("li[data-id]")].indexOf(li);
+          const sIds = cross ? [...ul.querySelectorAll("li[data-id]")].map(el=>el.dataset.id) : null;
+          let newId = r.id;
+          if(cross) newId = moveItemSection(r, parseSecId(toRaw));
+          const ordT = {};
+          tIds.forEach((id, i)=>{ ordT[i === tPos ? newId : id] = i; });
+          localThenRemote("/ord/s"+toRaw, ordT);
+          if(cross){
+            const ordS = {};
+            sIds.forEach((id, i)=>{ ordS[id] = i; });
+            localThenRemote("/ord/"+sKey, ordS);
+            toast("옮겼어요");
+          }
         }
       });
       if(!matches(r.text)) li.classList.add("hide"); else visibleCount++;
@@ -1811,6 +1877,22 @@ function renderHome(){
   document.getElementById("hBudCard").innerHTML = "<h3>💰 예산</h3>"
     + (g > 0 ? "<div class='hbig'>" + fmtWon(g) + "</div><div class='hmut'>≈" + vndStr(g) + " · 지금까지 책정한 합계</div>"
              : "<div class='hmut'>아직 예산을 안 잡았어요 — 눌러서 짜보세요</div>");
+
+  // 항공편 · 숙소 · 환율 (참고 카드)
+  document.getElementById("hFlightCard").innerHTML = "<h3>✈️ 항공편 · 예약 FB8XR7</h3>"
+    + "<div class='hline'><b>가는 편</b> KE467 · 9/10(목) 19:55 인천 → 23:05 깜란</div>"
+    + "<div class='hline'><b>오는 편</b> KE468 · 9/14(월) 00:20 깜란 → 07:25 인천</div>"
+    + "<div class='hmut'>기종 737-800 (변경됨) · 좌석은 대한항공 앱에서 확인</div>";
+  const jw = {la:12.0937798, lo:109.1903543, ln:"JW Marriott Cam Ranh"};
+  document.getElementById("hHotelCard").innerHTML = "<h3>🏨 숙소</h3>"
+    + "<div class='hbig'>JW 메리어트 깜란</div>"
+    + "<div class='hmut'>깜란 공항에서 차로 약 15분 · 바이다이 해변</div>"
+    + "<div class='hline'><a href='"+gmapUrl(jw)+"' target='_blank' rel='noopener'>구글맵↗</a>"
+    + "<a href='"+gmapDirUrl(jw)+"' target='_blank' rel='noopener'>길찾기↗</a></div>";
+  document.getElementById("hRateCard").innerHTML = "<h3>💱 환율 감각 (1원 ≈ "+VND_PER_KRW+"동)</h3>"
+    + "<div class='hline'>10,000원 ≈ <b>₫"+Math.round(10000*VND_PER_KRW).toLocaleString("ko-KR")+"</b></div>"
+    + "<div class='hline'>₫100,000 ≈ <b>"+fmtWon(Math.round(100000/VND_PER_KRW))+"</b></div>"
+    + "<div class='hmut'>동 가격에서 0 하나 빼고 반 나누면 대충 원화예요</div>";
 }
 document.getElementById("hPlanCard").addEventListener("click", ()=>showTab("plan"));
 document.getElementById("hCheckCard").addEventListener("click", ()=>showTab("check"));
