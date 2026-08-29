@@ -269,8 +269,9 @@ section.grp{
 .folded .grp-head, .folded .bhead{border-bottom:none}
 .grp-head .emoji{
   width:34px; height:34px; border-radius:10px; background:var(--scsoft);
-  display:grid; place-items:center; font-size:17px; flex:none;
+  display:grid; place-items:center; flex:none; color:var(--sc);
 }
+.grp-head .emoji svg{width:18px; height:18px}
 .grp-head h2{font-size:15px; font-weight:800; letter-spacing:-.01em; flex:1}
 .grp-head .gc{font-size:12px; font-weight:800; color:var(--sub); font-variant-numeric:tabular-nums}
 .grp-head .gc.full{color:var(--sc)}
@@ -1025,12 +1026,25 @@ function moveItemSection(r, toSec, text){
   return r.id;
 }
 function parseSecId(raw){ return /^\d+$/.test(raw) ? +raw : raw; }
+// 대분류 선 아이콘 (기본 5개는 순서대로, 직접 만든 대분류는 태그)
+const SEC_ICONS = [
+  '<rect x="4.5" y="7" width="15" height="13" rx="2.5"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M9 7v13M15 7v13"/>',
+  '<rect x="3.5" y="6" width="17" height="14" rx="3"/><path d="M12 10v6M9 13h6M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6"/>',
+  '<circle cx="12" cy="13" r="7.5"/><path d="M12 5.5C12 4 13 3 14.5 3"/><circle cx="9.5" cy="12.5" r=".9" fill="currentColor" stroke="none"/><circle cx="14.5" cy="12.5" r=".9" fill="currentColor" stroke="none"/><path d="M9.5 16c.8.8 1.7 1.2 2.5 1.2s1.7-.4 2.5-1.2"/>',
+  '<path d="M4 13a8 8 0 0 0 16 0H4z"/><path d="M9 9.8c0-1 .8-1.5.8-2.6M12.8 9.8c0-1 .8-1.5.8-2.6"/>',
+  '<circle cx="12" cy="12" r="8.5"/><path d="M5 6.5c4 3.5 10 3.5 14 0M5 17.5c4-3.5 10-3.5 14 0"/>'
+];
+const SEC_ICON_CUSTOM = '<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/>';
+function secIconSvg(icon){
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"'
+    + ' stroke-linecap="round" stroke-linejoin="round">'+icon+'</svg>';
+}
 // 기본 5개 + 직접 추가한 대분류를 합쳐 한 목록으로
 function sectionList(){
-  const base = DATA.map((sec,si)=>({id:si, name:sec.name, emoji:sec.emoji, color:si, items:sec.items, custom:false}));
+  const base = DATA.map((sec,si)=>({id:si, name:sec.name, icon:SEC_ICONS[si]||SEC_ICON_CUSTOM, color:si, items:sec.items, custom:false}));
   const cust = Object.entries(state.sections).filter(([k,v])=>v)
     .sort((a,b)=>a[0].localeCompare(b[0]))
-    .map(([k,v],i)=>({id:k, name:v.n, emoji:v.e||"📦", color:(5+i)%5, items:[], custom:true}));
+    .map(([k,v],i)=>({id:k, name:v.n, icon:SEC_ICON_CUSTOM, color:(5+i)%5, items:[], custom:true}));
   return base.concat(cust);
 }
 function renderCheck(){
@@ -1195,7 +1209,7 @@ function renderCheck(){
     const foldKey = "c:"+sec.id;
     const isFolded = !query && folded[foldKey]; // 검색 중에는 항상 펼침
     if(isFolded) box.classList.add("folded");
-    head.innerHTML = "<span class='emoji'>"+sec.emoji+"</span><h2>"+esc(sec.name)+"</h2>"
+    head.innerHTML = "<span class='emoji'>"+secIconSvg(sec.icon)+"</span><h2>"+esc(sec.name)+"</h2>"
       + "<span class='gc"+(done===total&&total>0?" full":"")+"'>"+done+" / "+total+"</span>"
       + "<span class='caret'>▾</span>";
     head.addEventListener("click", e=>{
@@ -2332,7 +2346,7 @@ function rebuildGaddOptions(){
   gaddSection.innerHTML = "";
   sectionList().forEach(sec=>{
     const o = document.createElement("option");
-    o.value = String(sec.id); o.textContent = sec.emoji+" "+sec.name;
+    o.value = String(sec.id); o.textContent = sec.name;
     gaddSection.appendChild(o);
   });
   if([...gaddSection.options].some(o=>o.value===prev)) gaddSection.value = prev;
