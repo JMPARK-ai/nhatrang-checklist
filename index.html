@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>나트랑 여행 준비물 · 일정 · 지도</title>
+<title>나트랑 여행 준비물 · 일정</title>
 <!-- 홈 화면 추가(PWA): 아이콘 + 주소창 없는 전체화면 -->
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -15,8 +15,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="나트랑">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --bg:#FFFFFF; --card:#FFFFFF; --ink:#24312E; --sub:#6E7F7A;
@@ -345,26 +343,6 @@ li.item.ph{
 .sheet-actions .btn{flex:1; padding:12px 0; font-size:15px}
 .sheet-actions .btn.danger,.sheet-actions .btn.ghost{flex:none; padding:12px 18px}
 
-/* ---------- 지도 ---------- */
-#map{
-  height:calc(100dvh - 250px); min-height:420px; border-radius:16px;
-  border:1px solid var(--line); z-index:1;
-}
-.map-chips{display:flex; gap:6px; overflow-x:auto; padding:2px 0 10px; scrollbar-width:none}
-.map-chips::-webkit-scrollbar{display:none}
-.mchip{
-  flex:none; border:1.5px solid var(--line); background:var(--card); color:var(--sub);
-  border-radius:99px; padding:7px 14px; font-size:13px; font-weight:800;
-  font-family:inherit; cursor:pointer;
-}
-.mchip.on{color:#fff; border-color:transparent}
-.mk{
-  width:26px; height:26px; border-radius:50%; border:2.5px solid #fff; color:#fff;
-  font-size:12px; font-weight:900; display:grid; place-items:center;
-  box-shadow:0 1px 5px rgba(0,0,0,.45); font-family:inherit;
-}
-.leaflet-popup-content{font-family:inherit; font-size:13px; line-height:1.5; margin:10px 14px}
-
 /* ---------- 기타 ---------- */
 .note{
   background:var(--card); border:1px dashed var(--line); border-radius:14px;
@@ -400,7 +378,6 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="tabs">
       <button class="tab on" id="tabCheck">🧳 준비물</button>
       <button class="tab" id="tabPlan">🗓️ 일정</button>
-      <button class="tab" id="tabMap">🗺️ 지도</button>
     </div>
     <div class="progress-row" id="progressRow">
       <div class="bar"><i id="barFill"></i></div>
@@ -425,7 +402,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="grid" id="sections"></div>
     <div class="note">
       👫 <b>같이 쓰는 법</b> — 이 주소를 두 분 다 즐겨찾기 해두고 열면 끝.
-      한 명이 체크하면 다른 사람 화면에도 몇 초 안에 자동 반영돼요. 일정·지도 탭도 똑같이 공유됩니다.
+      한 명이 체크하면 다른 사람 화면에도 몇 초 안에 자동 반영돼요. 일정 탭도 똑같이 공유됩니다.
     </div>
     <div class="foot"><button id="resetAll">준비물 전체 초기화</button></div>
   </div>
@@ -436,14 +413,6 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div id="planGrid"></div>
   </div>
 
-  <!-- ===== 지도 탭 ===== -->
-  <div id="viewMap" class="hidden">
-    <div class="map-chips" id="mapChips"></div>
-    <div id="map"></div>
-    <div class="note" id="mapHint">
-      📍 일정 항목을 눌러 <b>장소</b>를 붙이면 여기 날짜별 색깔로, 시간 순서 번호와 함께 표시돼요.
-    </div>
-  </div>
 </div>
 
 <!-- ===== 일정 편집 시트 ===== -->
@@ -468,11 +437,13 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     </div>
   </div>
   <div class="field">
-    <label>장소 (지도 탭에 표시)</label>
+    <label>장소 (구글맵으로 바로 열기)</label>
     <div class="loc-sel hidden" id="shLocSel">
       <span id="shLocName"></span>
       <a id="shLocG" href="#" target="_blank" rel="noopener"
          style="flex:none; font-size:12px; font-weight:800; color:var(--teal)">구글맵↗</a>
+      <a id="shLocD" href="#" target="_blank" rel="noopener"
+         style="flex:none; font-size:12px; font-weight:800; color:var(--teal)">길찾기↗</a>
       <button class="del" id="shLocClear" aria-label="장소 지우기">×</button>
     </div>
     <div class="loc-search">
@@ -508,7 +479,6 @@ const DAYS = [
   {label:"9/14 (월)", tag:"귀국 🛬"}
 ];
 const DAYCOLOR = ["s0","s2","s3","s4","s1"];
-const DAYHEX = ["#0E8C7F","#3B82C4","#E8862E","#9A5FC9","#E85A4F"];
 const TRIP_START = new Date(2026, 8, 10); // 2026-09-10
 // 나트랑 주요 스팟 (장소 빠른 선택)
 const PRESETS = [
@@ -1171,6 +1141,7 @@ function refreshLocSel(){
   if(has){
     shLocName.textContent = "📍 " + (sheetCtx.ln || (sheetCtx.la.toFixed(4)+", "+sheetCtx.lo.toFixed(4)));
     document.getElementById("shLocG").href = gmapUrl({la:sheetCtx.la, lo:sheetCtx.lo, ln:sheetCtx.ln});
+    document.getElementById("shLocD").href = gmapDirUrl({la:sheetCtx.la, lo:sheetCtx.lo});
   }
 }
 function pickLoc(la, lo, ln){
@@ -1242,9 +1213,7 @@ document.getElementById("shCancel").addEventListener("click", closeSheet);
 document.getElementById("shClose").addEventListener("click", closeSheet);
 ovl.addEventListener("click", closeSheet);
 
-/* ---------- 지도 (Leaflet + OpenStreetMap) ---------- */
-// 구글맵은 무료 임베드가 안 돼서(유료 API 키 필요) 표시용 지도는 OSM,
-// 실제 이동할 땐 구글맵 앱으로 넘겨준다 (안드로이드에서 앱으로 바로 열림)
+/* ---------- 구글맵 연결 (장소가 붙은 일정 → 구글맵 앱으로) ---------- */
 function gmapUrl(en){
   return "https://www.google.com/maps/search/?api=1&query="
     + (en.ln ? encodeURIComponent(en.ln+" Nha Trang") : en.la+","+en.lo);
@@ -1253,68 +1222,9 @@ function gmapDirUrl(en){
   return "https://www.google.com/maps/dir/?api=1&destination="+en.la+","+en.lo
     + "&travelmode=driving";
 }
-let map = null, mapLayer = null, mapDay = -1;
-const mapChipsEl = document.getElementById("mapChips");
-function ensureMap(){
-  if(map) return true;
-  if(typeof L === "undefined"){
-    toast("지도를 불러오는 중이에요 — 잠시 후 다시 눌러 주세요");
-    return false;
-  }
-  map = L.map("map");
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    {maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
-  mapLayer = L.layerGroup().addTo(map);
-  map.setView([12.2431, 109.1899], 13);
-  return true;
-}
-function renderMapChips(){
-  mapChipsEl.innerHTML = "";
-  const mk = (label, di)=>{
-    const b = document.createElement("button");
-    b.className = "mchip" + (mapDay===di?" on":"");
-    if(mapDay === di) b.style.background = di < 0 ? "var(--teal)" : DAYHEX[di];
-    b.textContent = label;
-    b.addEventListener("click", ()=>{ mapDay = di; renderMapChips(); renderMap(); });
-    mapChipsEl.appendChild(b);
-  };
-  mk("전체", -1);
-  DAYS.forEach((day, di)=> mk("DAY "+(di+1)+" · "+day.label.split(" ")[0], di));
-}
-function renderMap(){
-  if(!map) return;
-  mapLayer.clearLayers();
-  const bounds = [];
-  DAYS.forEach((day, di)=>{
-    if(mapDay >= 0 && mapDay !== di) return;
-    const ds = dayEntries(di);
-    const located = ds.timed.concat(ds.untimed)
-      .filter(([k, en])=> typeof en.la === "number" && typeof en.lo === "number");
-    const pts = [];
-    located.forEach(([k, en], i)=>{
-      const m = L.marker([en.la, en.lo], {icon: L.divIcon({
-        className:"", iconSize:[26,26], iconAnchor:[13,13],
-        html:"<div class='mk' style='background:"+DAYHEX[di]+"'>"+(i+1)+"</div>"
-      })}).addTo(mapLayer);
-      m.bindPopup("<b style='color:"+DAYHEX[di]+"'>DAY "+(di+1)+"</b> "
-        + (en.t ? en.t + (en.e?"–"+en.e:"") : "시간 미정") + "<br><b>"+esc(en.x)+"</b>"
-        + (en.ln ? "<br>📍 "+esc(en.ln) : "")
-        + "<br><a href='"+gmapUrl(en)+"' target='_blank' rel='noopener'>구글맵 열기</a>"
-        + " · <a href='"+gmapDirUrl(en)+"' target='_blank' rel='noopener'>길찾기</a>");
-      pts.push([en.la, en.lo]);
-      bounds.push([en.la, en.lo]);
-    });
-    if(pts.length > 1)
-      L.polyline(pts, {color:DAYHEX[di], weight:3, opacity:.75, dashArray:"7 7"}).addTo(mapLayer);
-  });
-  if(bounds.length) map.fitBounds(bounds, {padding:[45,45], maxZoom:15});
-  else map.setView([12.2431, 109.1899], 13);
-  document.getElementById("mapHint").style.display = bounds.length ? "none" : "";
-}
 function renderAll(){
   if(dragActive){ pendingRender = true; return; }
   renderCheck(); renderPlan();
-  if(map) renderMap();
 }
 
 /* ---------- 검색 ---------- */
@@ -1357,27 +1267,18 @@ gaddInput.addEventListener("keydown", e=>{ if(e.key==="Enter") gadd(); });
 
 /* ---------- 탭 ---------- */
 const tabCheck = document.getElementById("tabCheck"),
-      tabPlan = document.getElementById("tabPlan"),
-      tabMap = document.getElementById("tabMap");
+      tabPlan = document.getElementById("tabPlan");
 function showTab(which){
   tabCheck.classList.toggle("on", which==="check");
   tabPlan.classList.toggle("on", which==="plan");
-  tabMap.classList.toggle("on", which==="map");
   document.getElementById("viewCheck").classList.toggle("hidden", which!=="check");
   document.getElementById("viewPlan").classList.toggle("hidden", which!=="plan");
-  document.getElementById("viewMap").classList.toggle("hidden", which!=="map");
   document.getElementById("progressRow").classList.toggle("hidden", which!=="check");
   history.replaceState(null,"", which==="check" ? location.pathname : "#"+which);
-  if(which === "map" && ensureMap()){
-    renderMapChips();
-    setTimeout(()=>{ map.invalidateSize(); renderMap(); }, 60);
-  }
 }
 tabCheck.addEventListener("click", ()=>showTab("check"));
 tabPlan.addEventListener("click", ()=>showTab("plan"));
-tabMap.addEventListener("click", ()=>showTab("map"));
-if(location.hash==="#plan") showTab("plan");
-else if(location.hash==="#map") setTimeout(()=>showTab("map"), 300);
+if(location.hash==="#plan" || location.hash==="#map") showTab("plan");
 
 /* ---------- 기타 ---------- */
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
