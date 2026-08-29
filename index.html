@@ -263,18 +263,16 @@ li.item.ph{
   padding:9px 12px; font-size:14px; font-family:inherit; background:var(--card); color:var(--ink);
 }
 
-/* ---------- 일정: 날짜 칩 ---------- */
+/* ---------- 일정: 날짜 칩 (5일이 항상 한 줄에) ---------- */
 .day-chips{
-  display:flex; gap:6px; overflow-x:auto; padding:2px 0 12px;
-  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  display:grid; grid-template-columns:repeat(5,1fr); gap:5px; padding:2px 0 12px;
 }
-.day-chips::-webkit-scrollbar{display:none}
 .dchip{
-  flex:none; border:1.5px solid var(--line); background:var(--card); color:var(--sub);
-  border-radius:13px; padding:7px 13px; font-size:13px; font-weight:800;
-  font-family:inherit; cursor:pointer; line-height:1.3; text-align:center;
+  border:1.5px solid var(--line); background:var(--card); color:var(--sub);
+  border-radius:11px; padding:6px 2px; font-size:12.5px; font-weight:800;
+  font-family:inherit; cursor:pointer; line-height:1.3; text-align:center; min-width:0;
 }
-.dchip small{display:block; font-size:10px; font-weight:700; opacity:.8}
+.dchip small{display:block; font-size:9.5px; font-weight:700; opacity:.8; white-space:nowrap}
 .dchip.on{background:var(--dc); border-color:var(--dc); color:#fff}
 .dchip.today:not(.on){border-color:var(--coral); color:var(--coral)}
 
@@ -316,7 +314,7 @@ li.item.ph{
 .ev{
   position:absolute; background:var(--dcsoft); border-left:4px solid var(--dc);
   border-radius:8px; padding:3px 26px 3px 8px; overflow:hidden; cursor:pointer;
-  box-shadow:var(--shadow); min-width:0;
+  box-shadow:var(--shadow); min-width:0; outline:2px solid var(--card);
 }
 .ev .evt{font-size:10px; font-weight:900; color:var(--dc); font-variant-numeric:tabular-nums; line-height:1.4}
 .ev .evx{font-size:12.5px; font-weight:700; line-height:1.3; word-break:break-word}
@@ -353,6 +351,10 @@ li.item.ph{
   .sheet.show{transform:translateY(0)}
 }
 .sheet-head{display:flex; align-items:center; margin-bottom:12px}
+.v-x{font-size:17px; font-weight:900; line-height:1.4; margin-bottom:8px}
+.v-line{font-size:14px; line-height:1.55; margin:5px 0; white-space:pre-line; word-break:break-word}
+.v-line:empty{display:none}
+.v-line a{color:var(--teal); font-weight:800; text-decoration:none; margin-right:8px}
 .sheet-head h3{font-size:16px; font-weight:900; flex:1}
 .sheet-head .del{font-size:22px}
 .sheet label{font-size:12px; font-weight:800; color:var(--sub); display:block; margin-bottom:4px}
@@ -457,6 +459,25 @@ ul.brows{list-style:none}
 }
 .brow .bw{text-align:right}
 .brow .bw small{display:block; color:var(--sub); font-weight:600; font-size:10.5px; line-height:1.3}
+.brow .bw small.spent{color:var(--coral); font-weight:800}
+.bhead .bsub small{display:block; font-size:10.5px; color:var(--sub); font-weight:600; text-align:right}
+/* 경비 지갑 */
+.wallet{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px}
+@media (min-width:720px){ .wallet{grid-template-columns:repeat(4,1fr)} }
+.wcell{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 13px 11px; box-shadow:var(--shadow)}
+.wcell span{display:block; font-size:11px; font-weight:800; color:var(--sub)}
+.wcell b{display:block; font-size:16px; font-weight:900; margin-top:2px; font-variant-numeric:tabular-nums}
+.wcell i{display:block; font-style:normal; font-size:10.5px; color:var(--sub); font-variant-numeric:tabular-nums}
+.wcell.tap{cursor:pointer}
+.wcell.tap:active{background:var(--s0soft)}
+.wcell.good b{color:var(--ok)}
+.wcell.bad b{color:var(--coral)}
+.wedit{display:flex; gap:5px; margin-top:5px; align-items:center}
+.wedit input{
+  width:0; flex:1; border:1.5px solid var(--line); border-radius:8px; padding:6px 8px;
+  font-size:13px; font-family:inherit; background:var(--bg); color:var(--ink);
+}
+.wedit .btn.small{padding:6px 9px; font-size:12px; border-radius:8px}
 
 /* ---------- 기타 ---------- */
 .note{
@@ -546,7 +567,8 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
 
   <!-- ===== 예산 탭 ===== -->
   <div id="viewBud" class="hidden">
-    <div class="shead"><h2>💰 예산</h2><span class="smeta" id="budTotal">0원</span></div>
+    <div class="shead"><h2>💰 예산</h2><span class="smeta" id="budTotal"></span></div>
+    <div class="wallet" id="walletCard"></div>
     <div class="bgrid" id="budGrid"></div>
     <div class="note">
       💡 일정 항목을 눌러 <b>금액</b>을 넣으면 그 날짜 칸에 자동으로 모여요.
@@ -571,6 +593,21 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <h3 id="shTitle">일정 추가</h3>
     <button class="del" id="shClose" aria-label="닫기">×</button>
   </div>
+
+  <!-- 보기 모드: 저장된 일정을 먼저 보여주고, [수정]을 눌러야 수정 폼 -->
+  <div id="shView" class="hidden">
+    <div class="v-x" id="svX"></div>
+    <div class="v-line" id="svT"></div>
+    <div class="v-line" id="svW"></div>
+    <div class="v-line" id="svM"></div>
+    <div class="v-line" id="svL"></div>
+    <div class="sheet-actions">
+      <button class="btn" id="svEdit">✏️ 수정</button>
+      <button class="btn ghost" id="svClose">닫기</button>
+    </div>
+  </div>
+
+  <div id="shForm">
   <div class="field">
     <label for="shX">내용</label>
     <input type="text" id="shX" placeholder="예: 빈원더스, 저녁 - 씨푸드" autocomplete="off">
@@ -585,20 +622,25 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
       <input type="time" id="shE">
     </div>
   </div>
+  <div class="field">
+    <label for="shM">메모 <span style="font-weight:600">(선택)</span></label>
+    <textarea id="shM" rows="2" placeholder="예: 조식 포함 · 수영복 챙기기"></textarea>
+  </div>
   <div class="row2">
-    <div class="field" style="flex:1.6">
-      <label for="shM">메모 <span style="font-weight:600">(선택)</span></label>
-      <textarea id="shM" rows="2" placeholder="예: 조식 포함 · 수영복 챙기기"></textarea>
+    <div class="field">
+      <label for="shW">예산 (계획 금액)</label>
+      <input type="text" id="shW" inputmode="numeric" placeholder="예: 50000" autocomplete="off">
     </div>
     <div class="field">
-      <label for="shW">금액 <span style="font-weight:600">(예산 탭 집계)</span></label>
-      <div style="display:flex; gap:6px">
-        <input type="text" id="shW" inputmode="numeric" placeholder="예: 50000" autocomplete="off" style="flex:1; min-width:0">
-        <select id="shWU" class="unit-sel" aria-label="통화"><option value="krw">원 ₩</option><option value="vnd">동 ₫</option></select>
-      </div>
-      <div id="shWHint" style="font-size:11px; color:var(--sub); margin-top:3px; min-height:14px"></div>
+      <label for="shS">실제 쓴 돈 <span style="font-weight:600">(여행 중 기록)</span></label>
+      <input type="text" id="shS" inputmode="numeric" placeholder="쓰고 나서 입력" autocomplete="off">
+    </div>
+    <div class="field" style="flex:0 0 74px">
+      <label for="shWU">통화</label>
+      <select id="shWU" class="unit-sel" style="width:100%; padding:9px 4px" aria-label="통화"><option value="krw">원 ₩</option><option value="vnd">동 ₫</option></select>
     </div>
   </div>
+  <div id="shWHint" style="font-size:11px; color:var(--sub); margin:-6px 0 10px; min-height:14px"></div>
   <div class="field">
     <label>장소 (구글맵으로 바로 열기)</label>
     <div class="loc-sel hidden" id="shLocSel">
@@ -621,6 +663,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <button class="btn danger hidden" id="shDel">삭제</button>
     <button class="btn ghost" id="shCancel">취소</button>
   </div>
+  </div><!-- /shForm -->
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1065,6 +1108,8 @@ function entryValue(en, over){
   if(m) v.m = m;
   const w = over.w!==undefined ? over.w : en.w;
   if(typeof w === "number" && w > 0) v.w = w;
+  const s = over.s!==undefined ? over.s : en.s;
+  if(typeof s === "number" && s > 0) v.s = s;
   return v;
 }
 function renderPlan(){
@@ -1151,12 +1196,18 @@ function renderPlan(){
     tl.appendChild(nl);
   }
 
-  // 겹치는 일정은 열을 나눠 나란히
+  // 겹치는 일정은 캘린더 앱처럼 계단식으로 (뒤 일정이 약간 들여쓰기+위에 얹힘)
   const evs = ds.timed.map(([k, en])=>{
     const s = minsOf(en.t);
-    let e = (en.e && minsOf(en.e) > s) ? minsOf(en.e) : s + 45;
-    e = Math.min(e, 1440);
-    return {k, en, s, e};
+    const hasE = en.e && minsOf(en.e) > s;
+    let e = hasE ? minsOf(en.e) : s + 45;
+    return {k, en, s, e:Math.min(e, 1440), hasE};
+  }).sort((a,b)=> a.s-b.s || a.e-b.e);
+  // 종료 시간이 없는 일정은 다음 일정 시작 전까지만 그려서 불필요한 겹침을 줄임
+  evs.forEach((v, i)=>{
+    if(v.hasE) return;
+    const next = evs.find((o, j)=> j > i && o.s > v.s);
+    if(next) v.e = Math.max(v.s + 30, Math.min(v.e, next.s));
   });
   let cluster = null;
   const clusters = [];
@@ -1172,16 +1223,16 @@ function renderPlan(){
       if(li < 0){ lanes.push(v.e); li = lanes.length-1; } else lanes[li] = Math.max(lanes[li], v.e);
       v.lane = li;
     });
-    c.items.forEach(v=>{ v.laneN = lanes.length; });
   });
 
   evs.forEach(v=>{
     const el = document.createElement("div");
     el.className = "ev";
     el.style.top = (TL_TOP + v.s*PXPM) + "px";
-    el.style.height = Math.max(30, (v.e - v.s)*PXPM - 3) + "px";
-    el.style.left = (100/v.laneN*v.lane) + "%";
-    el.style.width = "calc("+(100/v.laneN)+"% - 4px)";
+    el.style.height = Math.max(26, (v.e - v.s)*PXPM - 3) + "px";
+    el.style.left = (v.lane * 16) + "px";
+    el.style.right = "0";
+    el.style.zIndex = 3 + v.lane;
     el.innerHTML = "<div class='evt'>"+v.en.t+(v.en.e?"–"+v.en.e:"")
       + (typeof v.en.w==="number" && v.en.w>0 ? " · 💰"+fmtWon(v.en.w) : "")+"</div>"
       + "<div class='evx'>"+esc(v.en.x)+"</div>"
@@ -1297,21 +1348,52 @@ function openSheet(ctx){
   let en = null;
   if(ctx.mode === "edit" && ctx.key) en = ((state.plan||{})["d"+ctx.di]||{})[ctx.key];
   document.getElementById("shTitle").textContent =
-    (ctx.mode === "edit" ? "일정 수정" : "일정 추가") + " — DAY " + (ctx.di+1) + " " + DAYS[ctx.di].label;
+    (ctx.mode === "edit" ? "일정" : "일정 추가") + " — DAY " + (ctx.di+1) + " " + DAYS[ctx.di].label;
   shX.value = en ? en.x : "";
   shT.value = en ? (en.t||"") : (ctx.t||"");
   shE.value = en ? (en.e||"") : "";
   document.getElementById("shM").value = en ? (en.m||"") : "";
   document.getElementById("shWU").value = "krw";
   document.getElementById("shW").value = (en && typeof en.w==="number" && en.w>0) ? String(en.w) : "";
+  document.getElementById("shS").value = (en && typeof en.s==="number" && en.s>0) ? String(en.s) : "";
+  // 손대지 않은 금액 필드는 통화를 바꿔도 재해석하지 않기 위한 기준값
+  sheetCtx.initW = document.getElementById("shW").value;
+  sheetCtx.initS = document.getElementById("shS").value;
+  sheetCtx.origW = en && typeof en.w==="number" ? en.w : 0;
+  sheetCtx.origS = en && typeof en.s==="number" ? en.s : 0;
   updWHint();
   if(en && typeof en.la === "number"){ sheetCtx.la = en.la; sheetCtx.lo = en.lo; sheetCtx.ln = en.ln||""; }
   shLocQ.value = ""; shLocRes.innerHTML = "";
   refreshLocSel();
   document.getElementById("shDel").classList.toggle("hidden", ctx.mode !== "edit");
+
+  // 저장된 일정은 보기 모드 먼저, [수정]을 눌러야 폼
+  const isView = !!en;
+  document.getElementById("shView").classList.toggle("hidden", !isView);
+  document.getElementById("shForm").classList.toggle("hidden", isView);
+  if(isView){
+    document.getElementById("svX").textContent = en.x;
+    document.getElementById("svT").textContent =
+      en.t ? "🕐 " + en.t + (en.e ? " – " + en.e : "") : "🕐 시간 미정";
+    document.getElementById("svW").textContent =
+      (typeof en.w==="number" && en.w>0 ? "💰 예산 " + fmtWon(en.w) + " (≈" + vndStr(en.w) + ")" : "")
+      + (typeof en.s==="number" && en.s>0 ? "\n💸 실제 쓴 돈 " + fmtWon(en.s) + " (≈" + vndStr(en.s) + ")" : "");
+    document.getElementById("svM").textContent = en.m ? "📝 " + en.m : "";
+    const svL = document.getElementById("svL");
+    if(typeof en.la === "number"){
+      svL.innerHTML = "📍 " + esc(en.ln || (en.la.toFixed(4)+", "+en.lo.toFixed(4)))
+        + " &nbsp;<a href='"+gmapUrl(en)+"' target='_blank' rel='noopener'>구글맵↗</a>"
+        + "<a href='"+gmapDirUrl(en)+"' target='_blank' rel='noopener'>길찾기↗</a>";
+    }else svL.innerHTML = "";
+  }
   ovl.classList.add("show"); sheetEl.classList.add("show");
   if(!en) setTimeout(()=>shX.focus(), 150);
 }
+document.getElementById("svEdit").addEventListener("click", ()=>{
+  document.getElementById("shView").classList.add("hidden");
+  document.getElementById("shForm").classList.remove("hidden");
+});
+document.getElementById("svClose").addEventListener("click", ()=>closeSheet());
 function closeSheet(){
   sheetCtx = null;
   ovl.classList.remove("show"); sheetEl.classList.remove("show");
@@ -1336,15 +1418,19 @@ document.getElementById("shLocClear").addEventListener("click", ()=>{
 });
 // 금액 입력 시 반대 통화로 환산 미리보기
 function updWHint(){
-  const a = parseWon(document.getElementById("shW").value);
   const u = document.getElementById("shWU").value;
-  const el = document.getElementById("shWHint");
-  if(!a){ el.textContent = ""; return; }
-  el.textContent = u === "vnd"
+  const conv = a => u === "vnd"
     ? "≈ " + fmtWon(Math.round(a / VND_PER_KRW))
     : "≈ ₫" + Math.round(a * VND_PER_KRW).toLocaleString("ko-KR");
+  const w = parseWon(document.getElementById("shW").value);
+  const s = parseWon(document.getElementById("shS").value);
+  const parts = [];
+  if(w) parts.push("예산 " + conv(w));
+  if(s) parts.push("실지출 " + conv(s));
+  document.getElementById("shWHint").textContent = parts.join(" · ");
 }
 document.getElementById("shW").addEventListener("input", updWHint);
+document.getElementById("shS").addEventListener("input", updWHint);
 document.getElementById("shWU").addEventListener("change", updWHint);
 // 나트랑 주요 스팟 빠른 선택
 const presetsEl = document.getElementById("shPresets");
@@ -1394,8 +1480,12 @@ document.getElementById("shSave").addEventListener("click", ()=>{
   }
   const m = document.getElementById("shM").value.trim();
   if(m) v.m = m;
-  const w = toWon(parseWon(document.getElementById("shW").value), document.getElementById("shWU").value);
+  const u = document.getElementById("shWU").value;
+  const wVal = document.getElementById("shW").value, sVal = document.getElementById("shS").value;
+  const w = wVal === sheetCtx.initW ? sheetCtx.origW : toWon(parseWon(wVal), u);
   if(w > 0) v.w = w;
+  const sAmt = sVal === sheetCtx.initS ? sheetCtx.origS : toWon(parseWon(sVal), u);
+  if(sAmt > 0) v.s = sAmt;
   const di = sheetCtx.di, key = sheetCtx.key || newKey();
   sheetCtx = null;
   ovl.classList.remove("show"); sheetEl.classList.remove("show");
@@ -1423,11 +1513,16 @@ function gmapDirUrl(en){
 /* ---------- 예산 ---------- */
 const budGrid = document.getElementById("budGrid");
 let bgEd = null; // 예산 직접 항목 인라인 수정 {bkey, key, draftX, draftW, draftU, focusPending}
-const VND_PER_KRW = 18.5; // 대략 환율: 1원 ≈ 18.5동 (변동 시 이 값만 수정)
+const VND_PER_KRW = 18.7; // 환율: 1원 ≈ 18.7동 (2026-08-29 시장환율 기준, 변동 시 이 값만 수정)
 function fmtWon(n){ return n.toLocaleString("ko-KR")+"원"; }
 function vndStr(w){ return "₫" + Math.round(w * VND_PER_KRW).toLocaleString("ko-KR"); }
 function toWon(amount, unit){ return unit === "vnd" ? Math.round(amount / VND_PER_KRW) : amount; }
-function bwHtml(w){ return "<span class='bw'>"+fmtWon(w)+"<small>≈"+vndStr(w)+"</small></span>"; }
+function bwHtml(w, s){
+  return "<span class='bw'>" + (w > 0 ? fmtWon(w)+"<small>≈"+vndStr(w)+"</small>" : "<small>계획 없음</small>")
+    + (typeof s === "number" && s > 0 ? "<small class='spent'>씀 "+fmtWon(s)+"</small>" : "")
+    + "</span>";
+}
+let fundEd = null; // 가져간 돈(환전) 인라인 수정 {draft, unit}
 function unitSel(){
   const s = document.createElement("select");
   s.className = "unit-sel"; s.setAttribute("aria-label","통화");
@@ -1437,22 +1532,25 @@ function unitSel(){
 function parseWon(s){ const n = parseInt(String(s).replace(/[^\d]/g,""), 10); return isNaN(n) ? 0 : n; }
 function renderBudget(){
   budGrid.innerHTML = "";
-  let grand = 0;
+  let grand = 0, spentAll = 0;
   const secs = [{di:-1, label:"공통 · 숙소/항공/환전 등", color:"s0"}]
     .concat(DAYS.map((d, di)=>({di:di, label:"DAY "+(di+1)+" · "+d.label, color:DAYCOLOR[di]})));
   secs.forEach(sec=>{
     const bkey = sec.di < 0 ? "g" : "d"+sec.di;
-    // 직접 추가한 예산 항목 + 일정에서 금액 넣은 항목
+    // 직접 추가한 예산 항목 + 일정에서 금액(예산/실지출) 넣은 항목
     const own = Object.entries((state.budget||{})[bkey]||{})
       .filter(([k,v])=>v && v.x).sort((a,b)=>a[0].localeCompare(b[0]));
     let linked = [];
     if(sec.di >= 0){
       const ds = dayEntries(sec.di);
-      linked = ds.timed.concat(ds.untimed).filter(([k,en])=> typeof en.w==="number" && en.w>0);
+      linked = ds.timed.concat(ds.untimed).filter(([k,en])=>
+        (typeof en.w==="number" && en.w>0) || (typeof en.s==="number" && en.s>0));
     }
     const sub = own.reduce((a,[k,v])=> a+(typeof v.w==="number"?v.w:0), 0)
-      + linked.reduce((a,[k,en])=> a+en.w, 0);
-    grand += sub;
+      + linked.reduce((a,[k,en])=> a+(typeof en.w==="number"?en.w:0), 0);
+    const sSum = own.reduce((a,[k,v])=> a+(typeof v.s==="number"?v.s:0), 0)
+      + linked.reduce((a,[k,en])=> a+(typeof en.s==="number"?en.s:0), 0);
+    grand += sub; spentAll += sSum;
 
     const card = document.createElement("div");
     card.className = "bcard";
@@ -1462,7 +1560,10 @@ function renderBudget(){
     const head = document.createElement("div");
     head.className = "bhead";
     head.innerHTML = "<h2>"+esc(sec.label)+"</h2>"
-      + (sub > 0 ? "<span class='bsub'>"+fmtWon(sub)+"</span>" : "");
+      + (sub > 0 || sSum > 0
+        ? "<span class='bsub'>"+(sub>0?fmtWon(sub)+"<small>≈"+vndStr(sub)+"</small>":"")
+          +(sSum>0?"<small style='color:var(--coral); font-weight:800'>씀 "+fmtWon(sSum)+"</small>":"")+"</span>"
+        : "");
     card.appendChild(head);
 
     // 직접 추가 칸
@@ -1495,7 +1596,7 @@ function renderBudget(){
       li.className = "brow";
       li.innerHTML = "<span class='bt'>"+(en.t||"미정")+"</span>"
         + "<span class='bx'>"+esc(en.x)+" <small>🗓️ 일정</small></span>"
-        + bwHtml(en.w);
+        + bwHtml(typeof en.w==="number"?en.w:0, en.s);
       li.addEventListener("click", ()=> openSheet({mode:"edit", di:sec.di, key:k}));
       ul.appendChild(li);
     });
@@ -1509,15 +1610,26 @@ function renderBudget(){
         xi.addEventListener("input", ()=>{ bgEd.draftX = xi.value; });
         const wi = document.createElement("input");
         wi.className = "bwon"; wi.inputMode = "numeric"; wi.value = bgEd.draftW;
+        wi.placeholder = "예산";
         wi.addEventListener("input", ()=>{ bgEd.draftW = wi.value; });
+        const si = document.createElement("input");
+        si.className = "bwon"; si.inputMode = "numeric"; si.value = bgEd.draftS || "";
+        si.placeholder = "실지출";
+        si.addEventListener("input", ()=>{ bgEd.draftS = si.value; });
         const ui = unitSel();
         ui.value = bgEd.draftU || "krw";
         ui.addEventListener("change", ()=>{ bgEd.draftU = ui.value; });
         const doSave = ()=>{
-          const x = bgEd.draftX.trim(), w = toWon(parseWon(bgEd.draftW), bgEd.draftU || "krw");
-          if(!x || !w){ toast("항목과 금액을 채워 주세요"); return; }
+          const u2 = bgEd.draftU || "krw";
+          // 손대지 않은 필드는 저장된 원값 그대로 - 통화만 바꿔도 금액이 변조되지 않게
+          const x = bgEd.draftX.trim();
+          const w = bgEd.draftW === bgEd.initW ? (v.w||0) : toWon(parseWon(bgEd.draftW), u2);
+          const sp = bgEd.draftS === bgEd.initS ? (v.s||0) : toWon(parseWon(bgEd.draftS), u2);
+          if(!x || (!w && !sp)){ toast("항목과 금액을 채워 주세요"); return; }
           bgEd = null;
-          localThenRemote("/budget/"+bkey+"/"+k, {x:x, w:w});
+          const nv = {x:x, w:w};
+          if(sp > 0) nv.s = sp;
+          localThenRemote("/budget/"+bkey+"/"+k, nv);
         };
         const sv = document.createElement("button");
         sv.className = "btn small"; sv.textContent = "저장";
@@ -1530,7 +1642,7 @@ function renderBudget(){
         const cc = document.createElement("button");
         cc.className = "btn small ghost"; cc.textContent = "취소";
         cc.addEventListener("click", ()=>{ bgEd = null; renderBudget(); });
-        li.appendChild(xi); li.appendChild(wi); li.appendChild(ui); li.appendChild(sv); li.appendChild(del); li.appendChild(cc);
+        li.appendChild(xi); li.appendChild(wi); li.appendChild(si); li.appendChild(ui); li.appendChild(sv); li.appendChild(del); li.appendChild(cc);
         if(bgEd.focusPending){ bgEd.focusPending = false; setTimeout(()=>xi.focus(), 0); }
         ul.appendChild(li);
         return;
@@ -1538,9 +1650,11 @@ function renderBudget(){
       const li = document.createElement("li");
       li.className = "brow";
       li.innerHTML = "<span class='bx'>"+esc(v.x)+"</span>"
-        + bwHtml(typeof v.w==="number" ? v.w : 0);
+        + bwHtml(typeof v.w==="number" ? v.w : 0, v.s);
       li.addEventListener("click", ()=>{
-        bgEd = {bkey:bkey, key:k, draftX:v.x, draftW:String(v.w||""), draftU:"krw", focusPending:true};
+        const iw = String(v.w||""), is = String(v.s||"");
+        bgEd = {bkey:bkey, key:k, draftX:v.x, draftW:iw, draftS:is,
+          initW:iw, initS:is, draftU:"krw", focusPending:true};
         renderBudget();
       });
       ul.appendChild(li);
@@ -1556,8 +1670,63 @@ function renderBudget(){
     card.appendChild(ul);
     budGrid.appendChild(card);
   });
-  document.getElementById("budTotal").textContent =
-    grand > 0 ? "합계 " + fmtWon(grand) + " · ≈" + vndStr(grand) : "";
+  document.getElementById("budTotal").textContent = grand > 0 ? "계획 " + fmtWon(grand) : "";
+
+  // 경비 지갑: 가져간 돈(환전) - 쓴 돈 = 남은 돈
+  const fund = typeof (state.budget||{}).fund === "number" ? state.budget.fund : 0;
+  const wl = document.getElementById("walletCard");
+  wl.innerHTML = "";
+  const mkCell = (label, won, cls)=>{
+    const c = document.createElement("div");
+    c.className = "wcell" + (cls ? " "+cls : "");
+    c.innerHTML = "<span>"+label+"</span><b>"+(won !== null ? fmtWon(won) : "—")+"</b>"
+      + (won !== null && won !== 0 ? "<i>≈"+vndStr(Math.abs(won))+"</i>" : "<i></i>");
+    return c;
+  };
+  wl.appendChild(mkCell("계획 합계", grand));
+  // 가져간 돈: 탭해서 입력/수정
+  const fc = document.createElement("div");
+  fc.className = "wcell tap";
+  if(fundEd){
+    fc.innerHTML = "<span>가져간 돈 (환전)</span>";
+    const row = document.createElement("div");
+    row.className = "wedit";
+    const fi = document.createElement("input");
+    fi.inputMode = "numeric"; fi.placeholder = "금액"; fi.value = fundEd.draft;
+    fi.addEventListener("input", ()=>{ fundEd.draft = fi.value; });
+    const fu = unitSel();
+    fu.value = fundEd.unit;
+    fu.addEventListener("change", ()=>{ fundEd.unit = fu.value; });
+    const fs = document.createElement("button");
+    fs.className = "btn small"; fs.textContent = "저장";
+    const fSave = ()=>{
+      const w = toWon(parseWon(fundEd.draft), fundEd.unit);
+      fundEd = null;
+      localThenRemote("/budget/fund", w > 0 ? w : null);
+    };
+    fs.addEventListener("click", e=>{ e.stopPropagation(); fSave(); });
+    fi.addEventListener("keydown", e=>{ if(e.key==="Enter") fSave(); });
+    fi.addEventListener("click", e=> e.stopPropagation());
+    fu.addEventListener("click", e=> e.stopPropagation());
+    row.appendChild(fi); row.appendChild(fu); row.appendChild(fs);
+    fc.appendChild(row);
+    setTimeout(()=>fi.focus(), 0);
+  }else{
+    fc.innerHTML = "<span>가져간 돈 (환전) ✏️</span><b>"+(fund>0?fmtWon(fund):"탭해서 입력")+"</b>"
+      + (fund>0?"<i>≈"+vndStr(fund)+"</i>":"<i></i>");
+    fc.addEventListener("click", ()=>{
+      fundEd = {draft: fund>0?String(fund):"", unit:"krw"};
+      renderBudget();
+    });
+  }
+  wl.appendChild(fc);
+  wl.appendChild(mkCell("쓴 돈", spentAll, spentAll>0?"bad":""));
+  if(fund > 0){
+    const remain = fund - spentAll;
+    wl.appendChild(mkCell("남은 돈", remain, remain >= 0 ? "good" : "bad"));
+  }else{
+    wl.appendChild(mkCell("남은 돈", null));
+  }
 }
 
 /* ---------- 홈 ---------- */
