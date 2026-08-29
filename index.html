@@ -250,7 +250,14 @@ section.grp{
 .grp-head{
   display:flex; align-items:center; gap:10px;
   padding:13px 16px; border-bottom:1px solid var(--line);
+  cursor:pointer; user-select:none;
 }
+.caret{
+  flex:none; color:var(--sub); font-size:12px; padding:2px 1px;
+  transition:transform .15s;
+}
+.folded .caret{transform:rotate(-90deg)}
+.folded .grp-head, .folded .bhead{border-bottom:none}
 .grp-head .emoji{
   width:34px; height:34px; border-radius:10px; background:var(--scsoft);
   display:grid; place-items:center; font-size:17px; flex:none;
@@ -492,7 +499,10 @@ li.item.ph{
   background:var(--card); border:1px solid var(--line); border-radius:18px;
   box-shadow:var(--shadow); overflow:hidden; border-top:4px solid var(--dc);
 }
-.bhead{display:flex; align-items:baseline; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line)}
+.bhead{
+  display:flex; align-items:baseline; gap:8px; padding:12px 16px;
+  border-bottom:1px solid var(--line); cursor:pointer; user-select:none;
+}
 .bhead h2{font-size:15px; font-weight:800; flex:1}
 .bhead .bsub{font-size:14px; font-weight:900; color:var(--dc); font-variant-numeric:tabular-nums}
 .badd{display:flex; gap:6px; padding:10px 12px; background:var(--dcsoft)}
@@ -643,9 +653,12 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
       <div class="hcard" id="hPlanCard"></div>
       <div class="hcard" id="hCheckCard"></div>
       <div class="hcard" id="hBudCard"></div>
+      <div class="hcard" id="hMemoCard"></div>
       <div class="hcard static" id="hFlightCard"></div>
       <div class="hcard static" id="hHotelCard"></div>
       <div class="hcard static" id="hRateCard"></div>
+      <div class="hcard static" id="hTipCard"></div>
+      <div class="hcard static" id="hEmerCard"></div>
     </div>
   </div>
 
@@ -977,6 +990,14 @@ function bindDrag(handle, cb){
 const secEl = document.getElementById("sections");
 function matches(t){ return !query || t.toLowerCase().includes(query); }
 let ckEd = null; // 준비물 인라인 수정 상태 {id, draft, custom, focusPending}
+// 대분류 접기/펴기 (기기별 저장)
+let folded = {};
+try{ folded = JSON.parse(localStorage.getItem("nt-folded")) || {}; }catch(e){}
+function toggleFold(key, rerender){
+  if(folded[key]) delete folded[key]; else folded[key] = 1;
+  try{ localStorage.setItem("nt-folded", JSON.stringify(folded)); }catch(e){}
+  rerender();
+}
 // 항목을 다른 대분류로 이동. 기본 목록 항목은 직접 추가 항목으로 변환해서 옮긴다.
 function moveItemSection(r, toSec, text){
   const t = text !== undefined ? text : r.text;
@@ -1160,8 +1181,16 @@ function renderCheck(){
       ul.appendChild(li);
     });
 
+    const foldKey = "c:"+sec.id;
+    const isFolded = !query && folded[foldKey]; // 검색 중에는 항상 펼침
+    if(isFolded) box.classList.add("folded");
     head.innerHTML = "<span class='emoji'>"+sec.emoji+"</span><h2>"+esc(sec.name)+"</h2>"
-      + "<span class='gc"+(done===total&&total>0?" full":"")+"'>"+done+" / "+total+"</span>";
+      + "<span class='gc"+(done===total&&total>0?" full":"")+"'>"+done+" / "+total+"</span>"
+      + "<span class='caret'>▾</span>";
+    head.addEventListener("click", e=>{
+      if(e.target.closest(".del")) return;
+      toggleFold(foldKey, renderCheck);
+    });
     if(sec.custom){
       // 직접 만든 대분류는 삭제 가능 (항목이 있으면 두 번 눌러 확정)
       const del = document.createElement("button");
@@ -1199,8 +1228,7 @@ function renderCheck(){
     inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submitSec(); });
     addBtn.addEventListener("click", submitSec);
     add.appendChild(inp); add.appendChild(addBtn);
-    box.appendChild(add);
-    box.appendChild(ul);
+    if(!isFolded){ box.appendChild(add); box.appendChild(ul); }
 
     if(query && visibleCount===0) box.classList.add("hidden");
     else anyVisible = true;
@@ -1830,11 +1858,16 @@ function renderBudget(){
 
     const head = document.createElement("div");
     head.className = "bhead";
+    const bFoldKey = "b:"+bkey;
+    const bFolded = !!folded[bFoldKey];
+    if(bFolded) card.classList.add("folded");
     head.innerHTML = "<h2>"+esc(sec.label)+"</h2>"
       + (sub > 0 || sSum > 0
         ? "<span class='bsub'>"+(sub>0?fmtWon(sub)+"<small>≈"+vndStr(sub)+"</small>":"")
           +(sSum>0?"<small style='color:var(--coral); font-weight:800'>씀 "+fmtWon(sSum)+"</small>":"")+"</span>"
         : "");
+    head.insertAdjacentHTML("beforeend", "<span class='caret'>▾</span>");
+    head.addEventListener("click", ()=> toggleFold(bFoldKey, renderBudget));
     card.appendChild(head);
 
     // 직접 추가 칸
@@ -1857,7 +1890,7 @@ function renderBudget(){
     wonInp.addEventListener("keydown", e=>{ if(e.key==="Enter") submit(); });
     nameInp.addEventListener("keydown", e=>{ if(e.key==="Enter") wonInp.focus(); });
     add.appendChild(nameInp); add.appendChild(wonInp); add.appendChild(unit); add.appendChild(addBtn);
-    card.appendChild(add);
+    if(!bFolded) card.appendChild(add);
 
     const ul = document.createElement("ul");
     ul.className = "brows";
@@ -1972,7 +2005,7 @@ function renderBudget(){
         : "이 날 쓸 돈을 추가하거나, 일정에 금액을 넣으면 자동으로 잡혀요";
       ul.appendChild(em);
     }
-    card.appendChild(ul);
+    if(!bFolded) card.appendChild(ul);
     budGrid.appendChild(card);
   });
   document.getElementById("budTotal").textContent = grand > 0 ? "계획 " + fmtWon(grand) : "";
@@ -2063,7 +2096,10 @@ const HICONS = {
   bud:'<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><circle cx="16.6" cy="14.8" r="1.15" fill="currentColor" stroke="none"/>',
   flight:'<path d="M21 3 3 10.5l7 2.7M21 3l-6.2 18-3.8-7.8M21 3 10.8 13.2"/>',
   hotel:'<path d="M3.5 21V5a2 2 0 0 1 2-2H14v18M14 8.5h4.5a2 2 0 0 1 2 2V21M3.5 21h17M7.5 7.5h3M7.5 11.5h3M7.5 15.5h3M17 13h.01M17 17h.01"/>',
-  rate:'<path d="M4 8.5h12.5l-3-3M20 15.5H7.5l3 3"/>'
+  rate:'<path d="M4 8.5h12.5l-3-3M20 15.5H7.5l3 3"/>',
+  memo:'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9.5 12.5h5M9.5 16h5"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11.5V16"/>',
+  phone:'<path d="M5.5 4h3.6l1.8 4.4-2.2 1.5a12.5 12.5 0 0 0 5.4 5.4l1.5-2.2L20 14.9v3.6a2 2 0 0 1-2.1 2A16.5 16.5 0 0 1 3.5 6.1 2 2 0 0 1 5.5 4z"/>'
 };
 function iconH3(key, c, label){
   return "<h3><span class='ic' style='background:var(--"+c+"soft); color:var(--"+c+")'>"
@@ -2114,6 +2150,15 @@ function renderHome(){
     + (g > 0 ? "<div class='hbig'>" + fmtWon(g) + "</div><div class='hmut'>≈" + vndStr(g) + " · 지금까지 책정한 합계</div>"
              : "<div class='hmut'>아직 예산을 안 잡았어요 — 눌러서 짜보세요</div>");
 
+  // 메모 카드
+  const noteArr = Object.entries(state.notes||{}).filter(([k,v])=>v && v.x)
+    .sort((a,b)=> (b[1].ts||0)-(a[1].ts||0));
+  document.getElementById("hMemoCard").innerHTML = iconH3("memo","s4","메모")
+    + (noteArr.length
+      ? "<div class='hbig'>"+esc(String(noteArr[0][1].x).split("\n")[0])+"</div>"
+        + "<div class='hmut'>최근 메모 · 전체 "+noteArr.length+"개</div>"
+      : "<div class='hmut'>환전 기록, 가고 싶은 곳 — 눌러서 적어보세요</div>");
+
   // 항공편 · 숙소 · 환율 (참고 카드)
   document.getElementById("hFlightCard").innerHTML = iconH3("flight","s4","항공편 · 예약 FB8XR7")
     + "<div class='hline'><b>가는 편</b> KE467 · 9/10(목) 19:55 인천 → 23:05 깜란</div>"
@@ -2129,10 +2174,26 @@ function renderHome(){
     + "<div class='hline'>10,000원 ≈ <b>₫"+Math.round(10000*VND_PER_KRW).toLocaleString("ko-KR")+"</b></div>"
     + "<div class='hline'>₫100,000 ≈ <b>"+fmtWon(Math.round(100000/VND_PER_KRW))+"</b></div>"
     + "<div class='hmut'>동 가격에서 0 하나 빼고 반 나누면 대충 원화예요</div>";
+
+  // 현지 정보 · 비상 연락처
+  const now = new Date();
+  const vn = new Date(now.getTime() + (now.getTimezoneOffset() + 7*60) * 60000);
+  const vnTime = String(vn.getHours()).padStart(2,"0")+":"+String(vn.getMinutes()).padStart(2,"0");
+  document.getElementById("hTipCard").innerHTML = iconH3("info","s2","현지 정보")
+    + "<div class='hline'>나트랑은 지금 <b>"+vnTime+"</b> · 한국보다 2시간 느려요</div>"
+    + "<div class='hline'>전압 220V — 한국 플러그 그대로 사용</div>"
+    + "<div class='hline'>이동은 <b>그랩(Grab)</b> 앱 · 마실 물은 생수만</div>"
+    + "<div class='hmut'>9월 나트랑 26~32℃ · 한낮 자외선 강함 · 오후 소나기 대비</div>";
+  document.getElementById("hEmerCard").innerHTML = iconH3("phone","s1","비상 연락처")
+    + "<div class='hline'>현지 긴급 · 경찰 <a href='tel:113'>113</a> · 구급 <a href='tel:115'>115</a></div>"
+    + "<div class='hline'>영사콜센터(24시간) <a href='tel:+82232100404'>+82-2-3210-0404</a></div>"
+    + "<div class='hline'>대한항공 <a href='tel:1588-2001'>1588-2001</a></div>"
+    + "<div class='hmut'>번호를 누르면 바로 전화가 걸려요</div>";
 }
 document.getElementById("hPlanCard").addEventListener("click", ()=>showTab("plan"));
 document.getElementById("hCheckCard").addEventListener("click", ()=>showTab("check"));
 document.getElementById("hBudCard").addEventListener("click", ()=>showTab("bud"));
+document.getElementById("hMemoCard").addEventListener("click", ()=>showTab("memo"));
 
 /* ---------- 메모장 ---------- */
 const memoListEl = document.getElementById("memoList");
