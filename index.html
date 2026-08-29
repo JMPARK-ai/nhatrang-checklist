@@ -1481,17 +1481,24 @@ function renderPlan(){
     el.style.height = v.h + "px";
     el.style.left = "0";
     el.style.right = "0";
-    // 메모·장소 상세는 블록에 늘어놓지 않고(잘려서 지저분) 탭하면 보기 시트에서.
-    // 있다는 표시(📝·📍)만 시간 줄에 남긴다.
+    // 메모 본문은 탭하면 보기 시트에서. 장소는 "리조트 안/장소명"으로 블록에 표시.
     const marks = (typeof v.en.w==="number" && v.en.w>0 ? " · 💰"+fmtWon(v.en.w) : "")
-      + (v.en.m ? " · 📝" : "") + (typeof v.en.la==="number" ? " · 📍" : "");
+      + (v.en.m ? " · 📝" : "");
+    const lbl = locLabel(v.en);
     const blockH = v.h;
     if(blockH < 42){
       // 짧은 블록은 시간+제목 한 줄로
       el.classList.add("compact");
-      el.innerHTML = "<div class='evc'><b>"+v.en.t+"</b> "+esc(v.en.x)+marks+"</div>";
-    }else{
+      el.innerHTML = "<div class='evc'><b>"+v.en.t+"</b> "+esc(v.en.x)+marks
+        + (lbl ? " · 📍"+esc(lbl) : "")+"</div>";
+    }else if(blockH >= 58){
       el.innerHTML = "<div class='evt'>"+v.en.t+(v.en.e?"–"+v.en.e:"")+marks+"</div>"
+        + "<div class='evx'>"+esc(v.en.x)+"</div>"
+        + (lbl ? "<div class='evl'>📍 "+esc(lbl)+"</div>" : "");
+    }else{
+      const s2 = lbl.length > 12 ? lbl.slice(0,12)+"…" : lbl;
+      el.innerHTML = "<div class='evt'>"+v.en.t+(v.en.e?"–"+v.en.e:"")+marks
+        + (s2 ? " · 📍"+esc(s2) : "")+"</div>"
         + "<div class='evx'>"+esc(v.en.x)+"</div>";
     }
     const g = document.createElement("button");
@@ -1636,7 +1643,10 @@ function openSheet(ctx){
     document.getElementById("svM").textContent = en.m ? "📝 " + en.m : "";
     const svL = document.getElementById("svL");
     if(typeof en.la === "number"){
-      svL.innerHTML = "📍 " + esc(en.ln || (en.la.toFixed(4)+", "+en.lo.toFixed(4)))
+      const lb = locLabel(en);
+      const disp = lb === "리조트 안" ? "리조트 안 · JW 메리어트 깜란"
+        : (en.ln || (en.la.toFixed(4)+", "+en.lo.toFixed(4)));
+      svL.innerHTML = "📍 " + esc(disp)
         + " &nbsp;<a href='"+gmapUrl(en)+"' target='_blank' rel='noopener'>구글맵↗</a>"
         + "<a href='"+gmapDirUrl(en)+"' target='_blank' rel='noopener'>길찾기↗</a>";
     }else svL.innerHTML = "";
@@ -2088,6 +2098,12 @@ function budgetGrand(){
 }
 function planLine(en){
   return (en.t ? "<b>"+en.t+(en.e?"–"+en.e:"")+"</b> " : "") + esc(en.x);
+}
+// 일정 장소 라벨: 숙소(JW) 좌표면 "리조트 안", 그 외엔 장소명
+function locLabel(en){
+  if(typeof en.la !== "number") return "";
+  if(en.ln === "JW Marriott Cam Ranh") return "리조트 안";
+  return en.ln || "";
 }
 // 홈 카드 제목용 선 아이콘 (currentColor)
 const HICONS = {
