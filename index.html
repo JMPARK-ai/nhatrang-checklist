@@ -179,7 +179,9 @@ li.item.on .txt{color:var(--done); text-decoration:line-through}
 .mv{
   flex:none; border:none; background:none; color:var(--sub); font-size:13px;
   padding:4px 5px; cursor:pointer; line-height:1; border-radius:6px;
+  touch-action:none;
 }
+li.item.dragging, .entry.dragging{opacity:.6; box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .mv:disabled{opacity:.25; cursor:default}
 .mv:active:not(:disabled){color:var(--teal)}
 .entry .mv{font-size:11px; padding:3px 4px}
@@ -468,6 +470,17 @@ function renderCheck(){
             localThenRemote("/ord/"+sKey, ordObj);
           }
         });
+      li.dataset.id = r.id;
+      if(!query) attachDrag([].slice.call(li.querySelectorAll(".mv")), li, (t, y)=>{
+        const over = t.closest ? t.closest("li.item") : null;
+        if(!over || over === li || over.parentElement !== ul) return;
+        const rc = over.getBoundingClientRect();
+        ul.insertBefore(li, y < rc.top + rc.height/2 ? over : over.nextSibling);
+      }, ()=>{
+        const ordObj = {};
+        ul.querySelectorAll("li.item").forEach((el, i)=>{ ordObj[el.dataset.id] = i; });
+        localThenRemote("/ord/"+sKey, ordObj);
+      });
       if(!matches(r.text)) li.classList.add("hide"); else visibleCount++;
       ul.appendChild(li);
     });
@@ -575,6 +588,64 @@ function makeItem(text, on, onToggle, onDel, mv){
   li.addEventListener("keydown", e=>{ if(e.target!==li) return; if(e.key===" "||e.key==="Enter"){ e.preventDefault(); onToggle(); }});
   return li;
 }
+/* ---------- 드래그 이동 (▲▼ 버튼을 누른 채 끌기) ---------- */
+let dragActive = false, pendingRender = false, justDragged = false;
+// 드래그 직후 남은 click 이 토글/수정으로 새지 않게 캡처 단계에서 차단
+document.addEventListener("click", e=>{
+  if(justDragged){ e.stopPropagation(); e.preventDefault(); }
+}, true);
+let scrollDir = 0, scrollRaf = null;
+function dragScroll(y){
+  const m = 70;
+  scrollDir = y < m ? -1 : (y > window.innerHeight - m ? 1 : 0);
+  if(scrollDir && !scrollRaf) scrollRaf = requestAnimationFrame(dragScrollLoop);
+}
+function dragScrollLoop(){
+  if(!scrollDir || !dragActive){ scrollRaf = null; return; }
+  window.scrollBy(0, scrollDir * 8);
+  scrollRaf = requestAnimationFrame(dragScrollLoop);
+}
+// btns 중 하나를 누른 채 6px 이상 움직이면 드래그 시작.
+// hover(포인터 아래 요소, y)가 item 을 미리 옮겨 보여주고, 놓으면 drop()이 저장.
+function attachDrag(btns, item, hover, drop){
+  btns.forEach(btn=>{
+    btn.addEventListener("pointerdown", e=>{
+      if(btn.disabled || dragActive) return;
+      const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+      let moved = false, done = false;
+      try{ btn.setPointerCapture(pid); }catch(err){}
+      const onMove = ev=>{
+        if(ev.pointerId !== pid) return;
+        if(!moved && Math.abs(ev.clientX-sx) + Math.abs(ev.clientY-sy) > 6){
+          moved = true; dragActive = true; item.classList.add("dragging");
+        }
+        if(!moved) return;
+        ev.preventDefault();
+        dragScroll(ev.clientY);
+        const t = document.elementFromPoint(ev.clientX, ev.clientY);
+        if(t) hover(t, ev.clientY);
+      };
+      const onEnd = ev=>{
+        if(ev.pointerId !== pid || done) return;
+        done = true;
+        window.removeEventListener("pointermove", onMove, true);
+        window.removeEventListener("pointerup", onEnd, true);
+        window.removeEventListener("pointercancel", onEnd, true);
+        scrollDir = 0;
+        if(!moved) return;
+        item.classList.remove("dragging");
+        dragActive = false;
+        justDragged = true; setTimeout(()=>{ justDragged = false; }, 250);
+        if(ev.type === "pointerup") drop();
+        if(pendingRender){ pendingRender = false; renderAll(); }
+      };
+      window.addEventListener("pointermove", onMove, true);
+      window.addEventListener("pointerup", onEnd, true);
+      window.addEventListener("pointercancel", onEnd, true);
+    });
+  });
+}
+
 function updateTotal(){
   let total=0, done=0;
   DATA.forEach((sec,si)=>{
@@ -650,6 +721,37 @@ function makeEntry(di, key, en){
   dn.setAttribute("aria-label","아래로 이동");
   dn.addEventListener("click", e=>{ e.stopPropagation(); movePlanEntry(di, key, 1); });
   chip.appendChild(up); chip.appendChild(dn);
+  chip.dataset.key = key;
+  attachDrag([up, dn], chip, (t, y)=>{
+    if(!t.closest) return;
+    const dayEl = chip.closest(".day");
+    const over = t.closest(".entry");
+    if(over && over !== chip && over.closest(".day") === dayEl){
+      const rc = over.getBoundingClientRect();
+      over.parentElement.insertBefore(chip, y < rc.top + rc.height/2 ? over : over.nextSibling);
+      return;
+    }
+    const slot = t.closest(".slot");
+    if(slot && slot.closest(".day") === dayEl){
+      const body = slot.querySelector(".slot-body");
+      if(body && chip.parentElement !== body) body.appendChild(chip);
+    }
+  }, ()=>{
+    const body = chip.parentElement;
+    const d = (state.plan||{})["d"+di] || {};
+    const cur = d[key];
+    if(!body || !body.classList.contains("slot-body") || !cur){ renderPlan(); return; }
+    const h = parseInt(body.dataset.h, 10);
+    const mins = (cur.t && cur.t.length >= 5) ? cur.t.slice(3) : "00";
+    const newT = h < 0 ? "" : String(h).padStart(2,"0")+":"+mins;
+    const patch = {};
+    body.querySelectorAll(".entry").forEach((el, i)=>{
+      const k2 = el.dataset.key, e2 = d[k2];
+      if(!e2) return;
+      patch[k2] = {t: k2===key ? newT : (e2.t||""), x: e2.x, o: i};
+    });
+    localThenRemotePatch("/plan/d"+di, patch);
+  });
   chip.addEventListener("click", e=>{
     e.stopPropagation();
     editing = {di, key, draftT:en.t||"", draftX:en.x, focusPending:true};
@@ -665,6 +767,7 @@ function makeSlot(di, label, list, prefill, timeInp, txtInp){
   tl.className = "slot-time"; tl.textContent = label;
   const body = document.createElement("div");
   body.className = "slot-body";
+  body.dataset.h = prefill ? parseInt(prefill, 10) : -1;
   list.forEach(([key, en])=> body.appendChild(makeEntry(di, key, en)));
   // 빈 칸을 탭하면 그 시간이 추가칸에 자동 입력
   body.addEventListener("click", e=>{
@@ -777,7 +880,10 @@ function renderPlan(){
     planEl.appendChild(card);
   });
 }
-function renderAll(){ renderCheck(); renderPlan(); }
+function renderAll(){
+  if(dragActive){ pendingRender = true; return; }
+  renderCheck(); renderPlan();
+}
 
 /* ---------- 검색 ---------- */
 const searchInput = document.getElementById("searchInput");
