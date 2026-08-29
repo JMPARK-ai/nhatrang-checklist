@@ -272,6 +272,7 @@ li.item.ph{
 .ev .evt{font-size:10px; font-weight:900; color:var(--dc); font-variant-numeric:tabular-nums; line-height:1.4}
 .ev .evx{font-size:12.5px; font-weight:700; line-height:1.3; word-break:break-word}
 .ev .evl{font-size:10.5px; color:var(--sub); line-height:1.4}
+.ev .evm{font-size:10.5px; color:var(--sub); line-height:1.35; white-space:pre-line}
 .ev .grip{position:absolute; right:0; top:0; padding:7px 8px; font-size:14px}
 .ev.dragging{opacity:.8; box-shadow:0 8px 22px rgba(0,0,0,.3); z-index:10}
 .nowline{
@@ -317,6 +318,12 @@ li.item.ph{
   width:100%; border:1.5px solid var(--line); border-radius:11px; padding:9px 10px;
   font-size:15px; font-family:inherit; background:var(--bg); color:var(--ink);
 }
+.sheet textarea{
+  width:100%; border:1.5px solid var(--line); border-radius:11px; padding:10px 12px;
+  font-size:14px; font-family:inherit; background:var(--bg); color:var(--ink);
+  resize:vertical; min-height:44px;
+}
+.sheet textarea:focus{outline:2px solid var(--teal); outline-offset:-1px}
 .loc-sel{
   display:flex; align-items:center; gap:8px; background:var(--s0soft);
   border-radius:10px; padding:8px 6px 8px 12px; font-size:13px; font-weight:700;
@@ -342,6 +349,59 @@ li.item.ph{
 .sheet-actions{display:flex; gap:8px; margin-top:14px}
 .sheet-actions .btn{flex:1; padding:12px 0; font-size:15px}
 .sheet-actions .btn.danger,.sheet-actions .btn.ghost{flex:none; padding:12px 18px}
+
+/* ---------- 예산 ---------- */
+.bsum{
+  background:var(--card); border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow); padding:15px 18px; margin-bottom:14px;
+  display:flex; align-items:baseline; gap:10px;
+}
+.bsum .blabel{font-size:13px; font-weight:800; color:var(--sub)}
+.bsum .btotal{
+  flex:1; text-align:right; font-size:24px; font-weight:900; color:var(--teal);
+  font-variant-numeric:tabular-nums;
+}
+.bgrid{display:grid; gap:14px; grid-template-columns:1fr; align-items:start}
+@media (min-width:720px){ .bgrid{grid-template-columns:repeat(2,1fr)} }
+@media (min-width:1060px){ .bgrid{grid-template-columns:repeat(3,1fr)} }
+.bcard{
+  background:var(--card); border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow); overflow:hidden; border-top:4px solid var(--dc);
+}
+.bhead{display:flex; align-items:baseline; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line)}
+.bhead h2{font-size:15px; font-weight:800; flex:1}
+.bhead .bsub{font-size:14px; font-weight:900; color:var(--dc); font-variant-numeric:tabular-nums}
+.badd{display:flex; gap:6px; padding:10px 12px; background:var(--dcsoft)}
+.badd input{
+  border:1.5px solid var(--line); border-radius:10px; padding:7px 10px;
+  font-size:14px; font-family:inherit; background:var(--card); color:var(--ink);
+}
+.badd input.bname{flex:1; min-width:0}
+.badd input.bwon{width:96px; flex:none; text-align:right}
+.badd .btn.small{background:var(--dc)}
+ul.brows{list-style:none}
+.brow{
+  display:flex; gap:8px; align-items:center; padding:10px 14px;
+  border-bottom:1px solid var(--line); cursor:pointer;
+}
+.brow:last-child{border-bottom:none}
+.brow:active{background:var(--dcsoft)}
+.brow .bt{font-size:11px; font-weight:900; color:var(--dc); font-variant-numeric:tabular-nums; flex:none}
+.brow .bx{flex:1; min-width:0; font-size:14px; word-break:break-word}
+.brow .bx small{color:var(--sub); font-size:11px}
+.brow .bw{font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap}
+.brow-edit{
+  display:flex; gap:6px; padding:8px 12px; border-bottom:1px solid var(--line);
+  background:var(--dcsoft); align-items:center; flex-wrap:wrap;
+}
+.brow-edit input{
+  border:1.5px solid var(--line); border-radius:8px; padding:7px 9px;
+  font-size:13px; font-family:inherit; background:var(--card); color:var(--ink);
+}
+.brow-edit input.bname{flex:1; min-width:110px}
+.brow-edit input.bwon{width:88px; flex:none; text-align:right}
+.brow-edit .btn.small{padding:7px 11px; font-size:12px; border-radius:8px}
+.bempty{padding:12px 16px; font-size:12.5px; color:var(--sub)}
 
 /* ---------- 기타 ---------- */
 .note{
@@ -378,6 +438,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="tabs">
       <button class="tab on" id="tabCheck">🧳 준비물</button>
       <button class="tab" id="tabPlan">🗓️ 일정</button>
+      <button class="tab" id="tabBud">💰 예산</button>
     </div>
     <div class="progress-row" id="progressRow">
       <div class="bar"><i id="barFill"></i></div>
@@ -413,6 +474,16 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div id="planGrid"></div>
   </div>
 
+  <!-- ===== 예산 탭 ===== -->
+  <div id="viewBud" class="hidden">
+    <div class="bsum"><span class="blabel">여행 예산 합계</span><span class="btotal" id="budTotal">0원</span></div>
+    <div class="bgrid" id="budGrid"></div>
+    <div class="note">
+      💡 일정 항목을 눌러 <b>금액</b>을 넣으면 그 날짜 칸에 자동으로 모여요.
+      숙소·환전처럼 일정에 없는 비용은 각 칸에서 바로 추가하면 됩니다. 이것도 실시간 공유돼요.
+    </div>
+  </div>
+
 </div>
 
 <!-- ===== 일정 편집 시트 ===== -->
@@ -434,6 +505,16 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="field">
       <label for="shE">종료 시간 <span style="font-weight:600">(선택)</span></label>
       <input type="time" id="shE">
+    </div>
+  </div>
+  <div class="row2">
+    <div class="field" style="flex:1.6">
+      <label for="shM">메모 <span style="font-weight:600">(선택)</span></label>
+      <textarea id="shM" rows="2" placeholder="예: 조식 포함 · 수영복 챙기기"></textarea>
+    </div>
+    <div class="field">
+      <label for="shW">금액 (원) <span style="font-weight:600">(예산 탭 집계)</span></label>
+      <input type="text" id="shW" inputmode="numeric" placeholder="예: 50000" autocomplete="off">
     </div>
   </div>
   <div class="field">
@@ -498,13 +579,13 @@ const PRESETS = [
   {n:"탑바 머드온천", la:12.2809, lo:109.1745}
 ];
 const CACHE_KEY = "nhatrang-rt-cache-v2";
-let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}, ord:{}, edits:{}};
+let state = {chk:{}, custom:{}, plan:{}, removed:{}, sections:{}, ord:{}, edits:{}, budget:{}};
 let query = "";
 
 function normalize(s){
   state = {chk:(s&&s.chk)||{}, custom:(s&&s.custom)||{}, plan:(s&&s.plan)||{},
     removed:(s&&s.removed)||{}, sections:(s&&s.sections)||{}, ord:(s&&s.ord)||{},
-    edits:(s&&s.edits)||{}};
+    edits:(s&&s.edits)||{}, budget:(s&&s.budget)||{}};
 }
 try{ normalize(JSON.parse(localStorage.getItem(CACHE_KEY))); }catch(e){}
 
@@ -882,7 +963,7 @@ function dayEntries(di){
     .sort((a,b)=> minsOf(a[1].t)-minsOf(b[1].t) || a[0].localeCompare(b[0]));
   return {untimed, timed};
 }
-// 저장 값 구성: 시간·내용 + (있으면) 종료·장소를 함께
+// 저장 값 구성: 시간·내용 + (있으면) 종료·장소·메모·금액을 함께
 function entryValue(en, over){
   const v = {t:(over.t!==undefined?over.t:en.t)||"", x:over.x!==undefined?over.x:en.x};
   const e = over.e!==undefined ? over.e : en.e;
@@ -894,6 +975,10 @@ function entryValue(en, over){
     const ln = over.ln!==undefined ? over.ln : en.ln;
     if(ln) v.ln = ln;
   }
+  const m = over.m!==undefined ? over.m : en.m;
+  if(m) v.m = m;
+  const w = over.w!==undefined ? over.w : en.w;
+  if(typeof w === "number" && w > 0) v.w = w;
   return v;
 }
 function renderPlan(){
@@ -1007,9 +1092,11 @@ function renderPlan(){
     el.style.height = Math.max(30, (v.e - v.s)*PXPM - 3) + "px";
     el.style.left = (100/v.laneN*v.lane) + "%";
     el.style.width = "calc("+(100/v.laneN)+"% - 4px)";
-    el.innerHTML = "<div class='evt'>"+v.en.t+(v.en.e?"–"+v.en.e:"")+"</div>"
+    el.innerHTML = "<div class='evt'>"+v.en.t+(v.en.e?"–"+v.en.e:"")
+      + (typeof v.en.w==="number" && v.en.w>0 ? " · 💰"+fmtWon(v.en.w) : "")+"</div>"
       + "<div class='evx'>"+esc(v.en.x)+"</div>"
-      + (v.en.ln ? "<div class='evl'>📍 "+esc(v.en.ln)+"</div>" : "");
+      + (v.en.ln ? "<div class='evl'>📍 "+esc(v.en.ln)+"</div>" : "")
+      + (v.en.m ? "<div class='evm'>📝 "+esc(v.en.m)+"</div>" : "");
     const g = document.createElement("button");
     g.className = "grip"; g.textContent = "⠿"; g.setAttribute("aria-label","끌어서 시간 이동");
     el.appendChild(g);
@@ -1123,6 +1210,8 @@ function openSheet(ctx){
   shX.value = en ? en.x : "";
   shT.value = en ? (en.t||"") : (ctx.t||"");
   shE.value = en ? (en.e||"") : "";
+  document.getElementById("shM").value = en ? (en.m||"") : "";
+  document.getElementById("shW").value = (en && typeof en.w==="number" && en.w>0) ? String(en.w) : "";
   if(en && typeof en.la === "number"){ sheetCtx.la = en.la; sheetCtx.lo = en.lo; sheetCtx.ln = en.ln||""; }
   shLocQ.value = ""; shLocRes.innerHTML = "";
   refreshLocSel();
@@ -1198,6 +1287,10 @@ document.getElementById("shSave").addEventListener("click", ()=>{
     v.la = sheetCtx.la; v.lo = sheetCtx.lo;
     if(sheetCtx.ln) v.ln = sheetCtx.ln;
   }
+  const m = document.getElementById("shM").value.trim();
+  if(m) v.m = m;
+  const w = parseWon(document.getElementById("shW").value);
+  if(w > 0) v.w = w;
   const di = sheetCtx.di, key = sheetCtx.key || newKey();
   sheetCtx = null;
   ovl.classList.remove("show"); sheetEl.classList.remove("show");
@@ -1222,9 +1315,134 @@ function gmapDirUrl(en){
   return "https://www.google.com/maps/dir/?api=1&destination="+en.la+","+en.lo
     + "&travelmode=driving";
 }
+/* ---------- 예산 ---------- */
+const budGrid = document.getElementById("budGrid");
+let bgEd = null; // 예산 직접 항목 인라인 수정 {bkey, key, draftX, draftW, focusPending}
+function fmtWon(n){ return n.toLocaleString("ko-KR")+"원"; }
+function parseWon(s){ const n = parseInt(String(s).replace(/[^\d]/g,""), 10); return isNaN(n) ? 0 : n; }
+function renderBudget(){
+  budGrid.innerHTML = "";
+  let grand = 0;
+  const secs = [{di:-1, label:"공통 · 숙소/항공/환전 등", color:"s0"}]
+    .concat(DAYS.map((d, di)=>({di:di, label:"DAY "+(di+1)+" · "+d.label, color:DAYCOLOR[di]})));
+  secs.forEach(sec=>{
+    const bkey = sec.di < 0 ? "g" : "d"+sec.di;
+    // 직접 추가한 예산 항목 + 일정에서 금액 넣은 항목
+    const own = Object.entries((state.budget||{})[bkey]||{})
+      .filter(([k,v])=>v && v.x).sort((a,b)=>a[0].localeCompare(b[0]));
+    let linked = [];
+    if(sec.di >= 0){
+      const ds = dayEntries(sec.di);
+      linked = ds.timed.concat(ds.untimed).filter(([k,en])=> typeof en.w==="number" && en.w>0);
+    }
+    const sub = own.reduce((a,[k,v])=> a+(typeof v.w==="number"?v.w:0), 0)
+      + linked.reduce((a,[k,en])=> a+en.w, 0);
+    grand += sub;
+
+    const card = document.createElement("div");
+    card.className = "bcard";
+    card.style.setProperty("--dc", "var(--"+sec.color+")");
+    card.style.setProperty("--dcsoft", "var(--"+sec.color+"soft)");
+
+    const head = document.createElement("div");
+    head.className = "bhead";
+    head.innerHTML = "<h2>"+esc(sec.label)+"</h2>"
+      + (sub > 0 ? "<span class='bsub'>"+fmtWon(sub)+"</span>" : "");
+    card.appendChild(head);
+
+    // 직접 추가 칸
+    const add = document.createElement("div");
+    add.className = "badd";
+    const nameInp = document.createElement("input");
+    nameInp.className = "bname"; nameInp.placeholder = "+ 항목 (예: 숙소 4박)";
+    const wonInp = document.createElement("input");
+    wonInp.className = "bwon"; wonInp.placeholder = "금액"; wonInp.inputMode = "numeric";
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn small"; addBtn.textContent = "추가";
+    const submit = ()=>{
+      const x = nameInp.value.trim(), w = parseWon(wonInp.value);
+      if(!x){ nameInp.focus(); return; }
+      if(!w){ toast("금액을 숫자로 넣어 주세요"); wonInp.focus(); return; }
+      localThenRemote("/budget/"+bkey+"/"+newKey(), {x:x, w:w});
+    };
+    addBtn.addEventListener("click", submit);
+    wonInp.addEventListener("keydown", e=>{ if(e.key==="Enter") submit(); });
+    nameInp.addEventListener("keydown", e=>{ if(e.key==="Enter") wonInp.focus(); });
+    add.appendChild(nameInp); add.appendChild(wonInp); add.appendChild(addBtn);
+    card.appendChild(add);
+
+    const ul = document.createElement("ul");
+    ul.className = "brows";
+    // 일정 연동 항목 - 탭하면 그 일정 수정 시트가 열림
+    linked.forEach(([k, en])=>{
+      const li = document.createElement("li");
+      li.className = "brow";
+      li.innerHTML = "<span class='bt'>"+(en.t||"미정")+"</span>"
+        + "<span class='bx'>"+esc(en.x)+" <small>🗓️ 일정</small></span>"
+        + "<span class='bw'>"+fmtWon(en.w)+"</span>";
+      li.addEventListener("click", ()=> openSheet({mode:"edit", di:sec.di, key:k}));
+      ul.appendChild(li);
+    });
+    // 직접 추가 항목 - 탭하면 인라인 수정
+    own.forEach(([k, v])=>{
+      if(bgEd && bgEd.bkey===bkey && bgEd.key===k){
+        const li = document.createElement("li");
+        li.className = "brow-edit";
+        const xi = document.createElement("input");
+        xi.className = "bname"; xi.value = bgEd.draftX;
+        xi.addEventListener("input", ()=>{ bgEd.draftX = xi.value; });
+        const wi = document.createElement("input");
+        wi.className = "bwon"; wi.inputMode = "numeric"; wi.value = bgEd.draftW;
+        wi.addEventListener("input", ()=>{ bgEd.draftW = wi.value; });
+        const doSave = ()=>{
+          const x = bgEd.draftX.trim(), w = parseWon(bgEd.draftW);
+          if(!x || !w){ toast("항목과 금액을 채워 주세요"); return; }
+          bgEd = null;
+          localThenRemote("/budget/"+bkey+"/"+k, {x:x, w:w});
+        };
+        const sv = document.createElement("button");
+        sv.className = "btn small"; sv.textContent = "저장";
+        sv.style.background = "var(--dc)";
+        sv.addEventListener("click", doSave);
+        wi.addEventListener("keydown", e=>{ if(e.key==="Enter") doSave(); });
+        const del = document.createElement("button");
+        del.className = "btn small danger"; del.textContent = "삭제";
+        del.addEventListener("click", ()=>{ bgEd = null; localThenRemote("/budget/"+bkey+"/"+k, null); });
+        const cc = document.createElement("button");
+        cc.className = "btn small ghost"; cc.textContent = "취소";
+        cc.addEventListener("click", ()=>{ bgEd = null; renderBudget(); });
+        li.appendChild(xi); li.appendChild(wi); li.appendChild(sv); li.appendChild(del); li.appendChild(cc);
+        if(bgEd.focusPending){ bgEd.focusPending = false; setTimeout(()=>xi.focus(), 0); }
+        ul.appendChild(li);
+        return;
+      }
+      const li = document.createElement("li");
+      li.className = "brow";
+      li.innerHTML = "<span class='bx'>"+esc(v.x)+"</span>"
+        + "<span class='bw'>"+fmtWon(typeof v.w==="number"?v.w:0)+"</span>";
+      li.addEventListener("click", ()=>{
+        bgEd = {bkey:bkey, key:k, draftX:v.x, draftW:String(v.w||""), focusPending:true};
+        renderBudget();
+      });
+      ul.appendChild(li);
+    });
+    if(!linked.length && !own.length){
+      const em = document.createElement("li");
+      em.className = "bempty";
+      em.textContent = sec.di < 0
+        ? "날짜에 안 묶이는 비용을 여기에 담으세요"
+        : "이 날 쓸 돈을 추가하거나, 일정에 금액을 넣으면 자동으로 잡혀요";
+      ul.appendChild(em);
+    }
+    card.appendChild(ul);
+    budGrid.appendChild(card);
+  });
+  document.getElementById("budTotal").textContent = fmtWon(grand);
+}
+
 function renderAll(){
   if(dragActive){ pendingRender = true; return; }
-  renderCheck(); renderPlan();
+  renderCheck(); renderPlan(); renderBudget();
 }
 
 /* ---------- 검색 ---------- */
@@ -1267,18 +1485,23 @@ gaddInput.addEventListener("keydown", e=>{ if(e.key==="Enter") gadd(); });
 
 /* ---------- 탭 ---------- */
 const tabCheck = document.getElementById("tabCheck"),
-      tabPlan = document.getElementById("tabPlan");
+      tabPlan = document.getElementById("tabPlan"),
+      tabBud = document.getElementById("tabBud");
 function showTab(which){
   tabCheck.classList.toggle("on", which==="check");
   tabPlan.classList.toggle("on", which==="plan");
+  tabBud.classList.toggle("on", which==="bud");
   document.getElementById("viewCheck").classList.toggle("hidden", which!=="check");
   document.getElementById("viewPlan").classList.toggle("hidden", which!=="plan");
+  document.getElementById("viewBud").classList.toggle("hidden", which!=="bud");
   document.getElementById("progressRow").classList.toggle("hidden", which!=="check");
   history.replaceState(null,"", which==="check" ? location.pathname : "#"+which);
 }
 tabCheck.addEventListener("click", ()=>showTab("check"));
 tabPlan.addEventListener("click", ()=>showTab("plan"));
+tabBud.addEventListener("click", ()=>showTab("bud"));
 if(location.hash==="#plan" || location.hash==="#map") showTab("plan");
+else if(location.hash==="#bud") showTab("bud");
 
 /* ---------- 기타 ---------- */
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
