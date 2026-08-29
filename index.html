@@ -55,27 +55,57 @@ body{
   line-height:1.5; -webkit-tap-highlight-color:transparent;
 }
 .wrap{max-width:1160px; margin:0 auto; padding:0 16px 80px}
+@media (max-width:719px){
+  .wrap{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+}
 
-/* ---------- 히어로 ---------- */
+/* ---------- 하단 내비 (모바일 전용) ---------- */
+.bottomnav{
+  position:fixed; left:0; right:0; bottom:0; z-index:50;
+  display:flex; background:var(--card); border-top:1px solid var(--line);
+  padding:4px 0 calc(4px + env(safe-area-inset-bottom));
+  box-shadow:0 -2px 12px rgba(0,0,0,.08);
+}
+.bottomnav button{
+  flex:1; border:none; background:none; font-family:inherit; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:1px;
+  padding:5px 0 4px; color:var(--sub); font-size:19px; line-height:1.2;
+  border-radius:12px;
+}
+.bottomnav button span{font-size:10.5px; font-weight:800}
+.bottomnav button.on{color:var(--teal)}
+.bottomnav button.on span{color:var(--teal)}
+@media (min-width:720px){ .bottomnav{display:none} }
+
+/* ---------- 히어로 (모바일=슬림 바, 데스크톱=큰 카드) ---------- */
 .hero{
-  margin:14px 0 0; border-radius:20px; padding:22px 22px 20px;
+  margin:10px 0 0; border-radius:14px; padding:9px 14px 10px;
   background:linear-gradient(130deg, var(--teal) 0%, var(--aqua) 52%, var(--sun) 120%);
   color:var(--hero-ink); position:relative; overflow:hidden;
 }
-.hero::after{
-  content:"🌴"; position:absolute; right:14px; bottom:-14px; font-size:88px;
-  opacity:.22; transform:rotate(-8deg);
-}
-.hero .eyebrow{font-size:12px; letter-spacing:.16em; font-weight:800; opacity:.9}
-.hero h1{font-size:26px; font-weight:900; letter-spacing:-.02em; margin:4px 0 2px; text-wrap:balance}
-.hero .dates{font-size:14px; font-weight:600; opacity:.95}
+.hero::after{content:none}
+.hero .eyebrow{display:none}
+.hero h1{font-size:16px; font-weight:900; letter-spacing:-.02em; margin:0; line-height:1.35}
+.hero .dates{font-size:11px; font-weight:600; opacity:.95}
 .live{
-  position:absolute; top:16px; right:16px;
-  display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800;
-  background:rgba(0,0,0,.18); border-radius:99px; padding:5px 11px; color:#fff;
+  position:absolute; top:50%; transform:translateY(-50%); right:10px;
+  display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800;
+  background:rgba(0,0,0,.18); border-radius:99px; padding:4px 9px; color:#fff;
 }
-.live .dot{width:8px; height:8px; border-radius:50%; background:var(--sun)}
+.live .dot{width:7px; height:7px; border-radius:50%; background:var(--sun)}
 .live.on .dot{background:#7CFFC2}
+@media (min-width:720px){
+  .hero{margin:14px 0 0; border-radius:20px; padding:22px 22px 20px}
+  .hero::after{
+    content:"🌴"; position:absolute; right:14px; bottom:-14px; font-size:88px;
+    opacity:.22; transform:rotate(-8deg);
+  }
+  .hero .eyebrow{display:block; font-size:12px; letter-spacing:.16em; font-weight:800; opacity:.9}
+  .hero h1{font-size:26px; margin:4px 0 2px; text-wrap:balance}
+  .hero .dates{font-size:14px}
+  .live{top:16px; right:16px; transform:none; font-size:12px; padding:5px 11px; gap:6px}
+  .live .dot{width:8px; height:8px}
+}
 
 /* ---------- 탭 + 진행률 (sticky) ---------- */
 .sticky{
@@ -83,6 +113,13 @@ body{
   padding:10px 0; border-bottom:1px solid var(--line); margin-bottom:14px;
 }
 .tabs{display:flex; gap:8px}
+/* 모바일: 상단 탭 대신 하단 내비 사용 */
+@media (max-width:719px){
+  .tabs{display:none}
+  .sticky{padding:8px 0; margin-bottom:12px}
+  .sticky.mobile-hide{display:none}
+  .progress-row{margin-top:0}
+}
 .tab{
   flex:1; max-width:220px; border:1.5px solid var(--line); background:var(--card);
   color:var(--sub); border-radius:12px; padding:9px 0; font-size:14px; font-weight:800;
@@ -411,6 +448,11 @@ ul.brows{list-style:none}
 .note b{color:var(--ink)}
 .toast{
   position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(80px);
+}
+@media (max-width:719px){
+  .toast{bottom:calc(78px + env(safe-area-inset-bottom))}
+}
+.toast{
   background:var(--ink); color:var(--bg); font-size:14px; font-weight:600;
   padding:11px 18px; border-radius:99px; transition:transform .25s; z-index:70;
   max-width:90vw; text-align:center;
@@ -434,7 +476,7 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
     <div class="live" id="live"><span class="dot"></span><span id="liveTxt">연결 중…</span></div>
   </div>
 
-  <div class="sticky">
+  <div class="sticky" id="stickyBar">
     <div class="tabs">
       <button class="tab on" id="tabCheck">🧳 준비물</button>
       <button class="tab" id="tabPlan">🗓️ 일정</button>
@@ -485,6 +527,13 @@ li.item:focus-visible,.tab:focus-visible,.btn:focus-visible,.foot button:focus-v
   </div>
 
 </div>
+
+<!-- ===== 하단 내비 (모바일) ===== -->
+<nav class="bottomnav" id="bottomNav" aria-label="메뉴">
+  <button data-tab="check" class="on">🧳<span>준비물</span></button>
+  <button data-tab="plan">🗓️<span>일정</span></button>
+  <button data-tab="bud">💰<span>예산</span></button>
+</nav>
 
 <!-- ===== 일정 편집 시트 ===== -->
 <div class="overlay" id="ovl"></div>
@@ -1491,15 +1540,21 @@ function showTab(which){
   tabCheck.classList.toggle("on", which==="check");
   tabPlan.classList.toggle("on", which==="plan");
   tabBud.classList.toggle("on", which==="bud");
+  document.querySelectorAll("#bottomNav button").forEach(b=>
+    b.classList.toggle("on", b.dataset.tab===which));
   document.getElementById("viewCheck").classList.toggle("hidden", which!=="check");
   document.getElementById("viewPlan").classList.toggle("hidden", which!=="plan");
   document.getElementById("viewBud").classList.toggle("hidden", which!=="bud");
   document.getElementById("progressRow").classList.toggle("hidden", which!=="check");
+  // 모바일: 준비물 밖에서는 상단 진행률 바 줄도 통째로 숨김
+  document.getElementById("stickyBar").classList.toggle("mobile-hide", which!=="check");
   history.replaceState(null,"", which==="check" ? location.pathname : "#"+which);
 }
 tabCheck.addEventListener("click", ()=>showTab("check"));
 tabPlan.addEventListener("click", ()=>showTab("plan"));
 tabBud.addEventListener("click", ()=>showTab("bud"));
+document.querySelectorAll("#bottomNav button").forEach(b=>
+  b.addEventListener("click", ()=>showTab(b.dataset.tab)));
 if(location.hash==="#plan" || location.hash==="#map") showTab("plan");
 else if(location.hash==="#bud") showTab("bud");
 
