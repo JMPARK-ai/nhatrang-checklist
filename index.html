@@ -2056,12 +2056,11 @@ function renderBudget(){
       + (won !== null && won !== 0 ? "<i>≈"+vndStr(Math.abs(won))+"</i>" : "<i></i>");
     return c;
   };
-  wl.appendChild(mkCell("계획 합계", grand));
-  // 가져간 돈: 탭해서 입력/수정
+  // 1) 예산(환전해 온 돈): 탭해서 입력/수정
   const fc = document.createElement("div");
   fc.className = "wcell tap";
   if(fundEd){
-    fc.innerHTML = "<span>가져간 돈 (환전)</span>";
+    fc.innerHTML = "<span>예산 (가져간 돈)</span>";
     const row = document.createElement("div");
     row.className = "wedit";
     const fi = document.createElement("input");
@@ -2085,7 +2084,7 @@ function renderBudget(){
     fc.appendChild(row);
     setTimeout(()=>fi.focus(), 0);
   }else{
-    fc.innerHTML = "<span>가져간 돈 (환전) ✏️</span><b>"+(fund>0?fmtWon(fund):"탭해서 입력")+"</b>"
+    fc.innerHTML = "<span>예산 (가져간 돈) ✏️</span><b>"+(fund>0?fmtWon(fund):"탭해서 입력")+"</b>"
       + (fund>0?"<i>≈"+vndStr(fund)+"</i>":"<i></i>");
     fc.addEventListener("click", ()=>{
       fundEd = {draft: fund>0?String(fund):"", unit:"krw"};
@@ -2093,13 +2092,17 @@ function renderBudget(){
     });
   }
   wl.appendChild(fc);
+  // 2) 쓴 돈 (아래 항목에서 ✓ 체크한 실지출 합계)
   wl.appendChild(mkCell("쓴 돈", spentAll, spentAll>0?"bad":""));
+  // 3) 남은 돈 = 예산 - 쓴 돈
   if(fund > 0){
     const remain = fund - spentAll;
     wl.appendChild(mkCell("남은 돈", remain, remain >= 0 ? "good" : "bad"));
   }else{
     wl.appendChild(mkCell("남은 돈", null));
   }
+  // 4) 계획 합계 (항목별 계획 금액의 합)
+  wl.appendChild(mkCell("계획 합계", grand));
 }
 
 /* ---------- 홈 ---------- */
